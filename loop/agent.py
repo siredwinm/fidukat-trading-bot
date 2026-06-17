@@ -86,13 +86,19 @@ class Agent:
         self._macro_ctx = {}
 
     def poll(self):
-        """Poll CMC quotes (batch) -> update candle store. Called frequently (live)."""
+        """Poll CMC quotes (batch) -> update candle store. Called frequently (live).
+        One retry on transient failure so a single hiccup doesn't drop a candle."""
         if not self.use_store:
             return
-        try:
-            self.store.tick(self.cmc.quotes_latest(gov.ALLOWLIST))
-        except Exception as e:
-            print(f"  ! quote poll failed: {e}")
+        for attempt in (1, 2):
+            try:
+                self.store.tick(self.cmc.quotes_latest(gov.ALLOWLIST))
+                return
+            except Exception as e:
+                if attempt == 2:
+                    print(f"  ! quote poll failed: {e}")
+                else:
+                    time.sleep(2)
 
     def _candles(self, sym, count=400):
         """CLOSED 1H candles for signals (exclude the still-forming bar so the live
@@ -145,10 +151,9 @@ class Agent:
         notional = p["qty"] * p["entry"]
         pnl = p["qty"] * (px - p["entry"])          # LONG only
         pnl_pct = (px / p["entry"] - 1) * 100 if p["entry"] else 0.0
-        if self.paper:
-            self.cash += notional + pnl             # return capital + PnL
-        else:
-            self.twak.close_long(sym, p["qty"])     # TOKEN -> USDT
+        if not self.paper:
+            self.twak.close_long(sym, p["qty"])     # TOKEN -> USDT (real swap)
+        self.cash += notional + pnl                 # cash accounting in both modes
         self._journal("CLOSE", sym, price=px, qty=p["qty"], entry=p["entry"],
                       pnl=round(pnl, 2), pnl_pct=round(pnl_pct, 2), reason=reason)
         print(f"  CLOSE {sym} @ {px:.6f} ({reason}) pnl=${pnl:.2f} ({pnl_pct:+.1f}%)")
@@ -162,10 +167,9 @@ class Agent:
             return False
         qty = notional / price
         sl, tp = gov.compute_levels(price, 1)
-        if self.paper:
-            self.cash -= notional
-        else:
-            self.twak.open_long(sym, notional)
+        if not self.paper:
+            self.twak.open_long(sym, notional)      # USDT -> TOKEN (real swap)
+        self.cash -= notional                       # cash accounting in both modes
         self.positions[sym] = {"side": 1, "entry": price, "qty": qty,
                                "sl": sl, "tp": tp, "t_open": now_utc().isoformat()}
         self.gov.record_trade()

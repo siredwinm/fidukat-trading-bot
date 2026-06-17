@@ -108,7 +108,42 @@ backtest/          Validation harness: eligible.py, validate.py (source-agnostic
                    reads cache), fetch_data.py (CMC OHLCV; needs a paid tier).
 ```
 
-**One cycle (`run_once`):**
+**Data & component flow:**
+
+```mermaid
+flowchart LR
+    CMC["CoinMarketCap Agent Hub"] -->|batch quotes| CS["Candle Store (1H)"]
+    CMC -->|Fear&Greed, derivatives| V["LLM Veto (Claude Haiku)"]
+    CS --> SIG["Supertrend (closed bars)"]
+    SIG --> GOV["Risk Governor<br/>sizing · drawdown · allowlist"]
+    V -->|may skip| GOV
+    GOV -->|approved order| TWAK["Trust Wallet Agent Kit"]
+    TWAK -->|spot swap, local signing| BSC[("BNB Chain / PancakeSwap")]
+    SDK["BNB AI Agent SDK"] -->|ERC-8004 identity| BSC
+    GOV --> J["Journal + state<br/>(--report)"]
+```
+
+**One cycle (`run_once`), runs each hour:**
+
+```mermaid
+flowchart TD
+    A["Poll CMC quotes (~5 min)"] --> B["Append to 1H candle store"]
+    B --> C{New hour?}
+    C -- no --> A
+    C -- yes --> D["Supertrend on CLOSED bars"]
+    D --> E["Mark-to-market → Drawdown Governor"]
+    E --> F["Manage open positions"]
+    F -->|SL / TP / timeout / flip-down| G["Close via TWAK swap"]
+    E --> H{"LONG signal & flat?"}
+    H -- yes --> I{"LLM veto?"}
+    I -- veto --> A
+    I -- allow --> K{"Governor: can_open,<br/>diversify, size"}
+    K -- ok --> L["Open LONG via TWAK swap"]
+    G --> M["Journal + persist state"]
+    L --> M
+    M --> A
+```
+
 1. poll CMC quotes → update candle store
 2. mark-to-market equity → update drawdown governor
 3. manage open positions: SL / TP / timeout / Supertrend flips down → swap out

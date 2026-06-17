@@ -14,7 +14,7 @@ while remaining profitable. This module enforces that discipline strictly:
 
 No LLM here. Everything is deterministic and auditable.
 """
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, fields
 
 # ── validated token basket (expR>=+0.13, MC DD<=18%, RoR 0% on re-backtest) ──
 ALLOWLIST = [
@@ -88,8 +88,9 @@ class RiskGovernor:
 
     @classmethod
     def from_dict(cls, d):
-        g = cls(d["start_equity"])
-        g.s = GovernorState(**d)
+        g = cls(d.get("start_equity", d.get("peak_equity", 0.0)))
+        known = {f.name for f in fields(GovernorState)}   # ignore unknown/legacy keys
+        g.s = GovernorState(**{k: v for k, v in d.items() if k in known})
         return g
 
     # ── daily & equity updates ──
