@@ -33,6 +33,10 @@ MAX_RISK = 0.05      # cap risk fraction
 MIN_RISK = 0.004     # floor so we still meet >=1 trade/day
 REF_ATR = 0.02       # reference atr_pct (≈ SL); used when no per-token ref exists
 
+# ── diversification (avoid single-name concentration under the drawdown gate) ──
+MAX_CONCURRENT = 4         # max simultaneous positions
+MAX_POSITION_FRAC = 0.34   # cap notional per position to this fraction of equity
+
 # ── drawdown governor (competition gate ~30%) ──
 DD_DERISK_START = 0.12   # start shrinking size
 DD_HALT = 0.22           # STOP opening new positions — 8% buffer below the 30% gate
@@ -130,7 +134,8 @@ class RiskGovernor:
         (risk_fraction = fraction of equity lost if SL is hit; notional = risk/SL.)"""
         frac = size_fraction(atr_pct, ref_atr) * self.risk_scale(equity)
         risk_usd = equity * frac
-        return risk_usd / SL
+        notional = risk_usd / SL
+        return min(notional, equity * MAX_POSITION_FRAC)   # diversification cap
 
     def needs_forced_trade(self, hour_utc: int) -> bool:
         """No trade yet today & past the cutoff → must take the best signal

@@ -26,7 +26,7 @@ import urllib.parse
 PRO_BASE = "https://pro-api.coinmarketcap.com"
 MCP_URL = "https://mcp.coinmarketcap.com/mcp"
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "backtest", "data")
-_CTX = ssl.create_default_context(); _CTX.check_hostname = False; _CTX.verify_mode = ssl.CERT_NONE
+_CTX = ssl.create_default_context()  # verified TLS (certificate + hostname)
 
 
 class CMCError(Exception):

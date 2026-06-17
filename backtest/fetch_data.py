@@ -29,7 +29,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 TARGET_DAYS = 730
 WINDOW_DAYS = 25          # pagination window (~600 1H candles per call)
 API_KEY = os.environ.get("CMC_API_KEY", "")
-_CTX = ssl.create_default_context(); _CTX.check_hostname = False; _CTX.verify_mode = ssl.CERT_NONE
+_CTX = ssl.create_default_context()  # verified TLS (certificate + hostname)
 
 
 def _get(path, params):

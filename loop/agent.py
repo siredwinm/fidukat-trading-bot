@@ -43,6 +43,7 @@ from execution.twak import TWAK
 STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "state")
 POS_FILE = os.path.join(STATE_DIR, "positions.json")
 GOV_FILE = os.path.join(STATE_DIR, "governor.json")
+JOURNAL_FILE = os.path.join(STATE_DIR, "journal.jsonl")
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "backtest", "data")
 START_EQUITY = float(os.environ.get("START_EQUITY", "1000"))
 POLL_SECONDS = int(os.environ.get("POLL_SECONDS", "300"))   # poll quotes every 5 minutes
@@ -94,10 +95,19 @@ class Agent:
             print(f"  ! quote poll failed: {e}")
 
     def _candles(self, sym, count=400):
-        """1H candle series for signals: store (live) or cache (offline)."""
+        """CLOSED 1H candles for signals (exclude the still-forming bar so the live
+        signal matches the backtest, which uses closed bars only)."""
         if self.use_store:
-            return self.store.get_candles(sym, count)
+            return self.store.get_candles(sym, count, include_forming=False)
         return self.cmc.get_ohlcv_1h(sym, count)
+
+    def _price(self, sym, closed):
+        """Current price for MTM / SL-TP / entry: latest quote (live) or last close."""
+        if self.use_store:
+            p = self.store.last_price(sym)
+            if p is not None:
+                return p
+        return closed[-1][4]
 
     # ── equity (paper: cash + mark-to-market of LONG positions) ──
     def mark_to_market(self, prices):
@@ -123,33 +133,46 @@ class Agent:
             print(f"  VETO {sym}: {reason}")
         return v
 
+    def _journal(self, event, sym, **fields):
+        """Append one human-readable trade event to state/journal.jsonl."""
+        os.makedirs(STATE_DIR, exist_ok=True)
+        rec = {"ts": now_utc().isoformat(), "event": event, "sym": sym, **fields}
+        with open(JOURNAL_FILE, "a") as f:
+            f.write(json.dumps(rec) + "\n")
+
     def _close(self, sym, px, reason):
         p = self.positions.pop(sym)
         notional = p["qty"] * p["entry"]
         pnl = p["qty"] * (px - p["entry"])          # LONG only
+        pnl_pct = (px / p["entry"] - 1) * 100 if p["entry"] else 0.0
         if self.paper:
             self.cash += notional + pnl             # return capital + PnL
         else:
             self.twak.close_long(sym, p["qty"])     # TOKEN -> USDT
-        print(f"  CLOSE {sym} @ {px:.6f} ({reason})")
+        self._journal("CLOSE", sym, price=px, qty=p["qty"], entry=p["entry"],
+                      pnl=round(pnl, 2), pnl_pct=round(pnl_pct, 2), reason=reason)
+        print(f"  CLOSE {sym} @ {px:.6f} ({reason}) pnl=${pnl:.2f} ({pnl_pct:+.1f}%)")
 
-    def _open_long(self, sym, snap, equity):
-        """Spot LONG: USDT -> TOKEN (TWAK = spot only, no shorts)."""
-        notional = self.gov.position_size_usd(equity, snap.atr_pct)
+    def _open_long(self, sym, price, atr_pct, equity):
+        """Spot LONG: USDT -> TOKEN (TWAK = spot only, no shorts). Entry at the
+        current price; size capped for diversification (see governor)."""
+        notional = self.gov.position_size_usd(equity, atr_pct)
         notional = min(notional, self.cash * 0.95)
         if notional < 10:
             return False
-        qty = notional / snap.close
-        sl, tp = gov.compute_levels(snap.close, 1)
+        qty = notional / price
+        sl, tp = gov.compute_levels(price, 1)
         if self.paper:
             self.cash -= notional
         else:
             self.twak.open_long(sym, notional)
-        self.positions[sym] = {"side": 1, "entry": snap.close, "qty": qty,
+        self.positions[sym] = {"side": 1, "entry": price, "qty": qty,
                                "sl": sl, "tp": tp, "t_open": now_utc().isoformat()}
         self.gov.record_trade()
-        print(f"  OPEN LONG {sym} @ {snap.close:.6f} notional=${notional:.0f} "
-              f"sl={sl:.6f} tp={tp:.6f} atr%={snap.atr_pct*100:.2f}")
+        self._journal("OPEN", sym, price=price, qty=qty, notional=notional,
+                      reason="supertrend-long", atr_pct=atr_pct)
+        print(f"  OPEN LONG {sym} @ {price:.6f} notional=${notional:.0f} "
+              f"sl={sl:.6f} tp={tp:.6f} atr%={atr_pct*100:.2f}")
         return True
 
     def run_once(self):
@@ -164,9 +187,9 @@ class Agent:
         snaps, prices, warming = {}, {}, 0
         for sym in gov.ALLOWLIST:
             try:
-                candles = self._candles(sym, count=400)
+                candles = self._candles(sym, count=400)   # closed bars only
                 snaps[sym] = core.compute(candles)
-                prices[sym] = snaps[sym].close
+                prices[sym] = self._price(sym, candles)   # current price
             except ValueError:
                 warming += 1   # not enough candles yet (warmup)
             except Exception as e:
@@ -180,13 +203,13 @@ class Agent:
         print(f"  equity=${equity:.0f} dd={dd*100:.1f}% can_open={can_open} "
               f"open_pos={list(self.positions)}")
 
-        # 1) manage open positions (side-aware exit)
+        # 1) manage open positions (exit at current price)
         for sym in list(self.positions):
             p = self.positions[sym]
             snap = snaps.get(sym)
-            if not snap:
+            px = prices.get(sym)
+            if snap is None or px is None:
                 continue
-            px = snap.close
             held_h = (t - datetime.fromisoformat(p["t_open"])).total_seconds() / 3600
             if px <= p["sl"]:
                 self._close(sym, p["sl"], "SL")
@@ -207,16 +230,17 @@ class Agent:
 
         if can_open:
             for sym, snap in candidates:
-                if self.cash < 15:
+                if len(self.positions) >= gov.MAX_CONCURRENT or self.cash < 15:
                     break
-                self._open_long(sym, snap, equity)
+                self._open_long(sym, prices[sym], snap.atr_pct, equity)
 
             # 3) guarantee >=1 trade/day
-            if self.gov.needs_forced_trade(hour) and self.gov.s.trades_today == 0 and candidates:
+            if (self.gov.needs_forced_trade(hour) and self.gov.s.trades_today == 0
+                    and candidates and len(self.positions) < gov.MAX_CONCURRENT):
                 sym, snap = candidates[0]
                 if sym not in self.positions:
                     print("  [daily forced-trade]")
-                    self._open_long(sym, snap, equity)
+                    self._open_long(sym, prices[sym], snap.atr_pct, equity)
 
         # 4) persist
         self.gov.update_equity(equity)
@@ -226,8 +250,51 @@ class Agent:
         return equity
 
 
+def report():
+    """Human-readable status report from persisted state + the trade journal."""
+    pos = _load(POS_FILE, {})
+    gstate = _load(GOV_FILE, None)
+    cash = _load(os.path.join(STATE_DIR, "cash.json"), {"usd": START_EQUITY})["usd"]
+    events = []
+    if os.path.exists(JOURNAL_FILE):
+        for line in open(JOURNAL_FILE):
+            line = line.strip()
+            if line:
+                events.append(json.loads(line))
+    closes = [e for e in events if e["event"] == "CLOSE"]
+    wins = [e for e in closes if e.get("pnl", 0) > 0]
+    realized = sum(e.get("pnl", 0) for e in closes)
+    start = gstate["start_equity"] if gstate else START_EQUITY
+    peak = gstate["peak_equity"] if gstate else start
+    print("=" * 56)
+    print("  FIDUKAT — status report")
+    print("=" * 56)
+    print(f"  start equity   : ${start:,.2f}")
+    print(f"  cash (free)    : ${cash:,.2f}")
+    print(f"  peak equity    : ${peak:,.2f}")
+    if gstate:
+        print(f"  total trades   : {gstate['total_trades']}  | today: {gstate['trades_today']}")
+        print(f"  drawdown HALT  : {'YES' if gstate['halted'] else 'no'}")
+    print(f"  closed trades  : {len(closes)}  | win rate: "
+          f"{(len(wins)/len(closes)*100 if closes else 0):.0f}%")
+    print(f"  realized PnL   : ${realized:+,.2f}")
+    print(f"  open positions : {len(pos)}")
+    for sym, p in pos.items():
+        print(f"     {sym:<6} entry={p['entry']:.6f} qty={p['qty']:.4f} "
+              f"sl={p['sl']:.6f} tp={p['tp']:.6f}")
+    if closes:
+        print("  recent closes  :")
+        for e in closes[-5:]:
+            print(f"     {e['ts'][:16]} {e['sym']:<6} {e.get('reason',''):<10} "
+                  f"${e.get('pnl',0):+.2f} ({e.get('pnl_pct',0):+.1f}%)")
+    print("=" * 56)
+
+
 def main():
     a = Agent()
+    if "--report" in sys.argv:
+        report()
+        return
     if "--poll" in sys.argv:   # single quote poll -> update candle store, then exit
         a.poll()
         print(f"poll done. sample n_bars: " +

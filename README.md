@@ -97,6 +97,7 @@ cp .env.example .env            # add CMC_API_KEY (free tier is enough); keep TW
 
 .venv/bin/python loop/agent.py --poll     # test connectivity + start building candles
 .venv/bin/python loop/agent.py --loop     # poll every 5 min, evaluate hourly (paper if TWAK_LIVE=0)
+.venv/bin/python loop/agent.py --report   # human-readable status (equity, drawdown, win rate, trades)
 ```
 
 Going live: install TWAK (`curl -fsSL https://agent-kit.trustwallet.com/install.sh |
@@ -111,8 +112,14 @@ window opens so the 1H candle history warms up. Full details in
 - **Self-custody** — keys never leave the user; TWAK signs locally throughout.
 - **Drawdown governor** — size scales down from 12% drawdown, halts at 22%, resumes
   only after recovery below 15%.
+- **Diversification** — per-position notional capped (≤34% of equity) and at most
+  4 concurrent positions, so a single-name gap can't blow the gate.
 - **Allowlist + daily-trade guarantee + slippage protection** — all enforced
   deterministically in `risk/governor.py`.
+- **Verified TLS** on all API calls; the LLM veto treats market data as untrusted
+  input (prompt-injection guard) and can only skip a trade, never create one.
+- **Trade journal** (`state/journal.jsonl`) records every open/close with PnL and
+  reason; `--report` summarizes it for humans / judges.
 
 ## License
 

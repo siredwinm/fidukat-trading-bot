@@ -88,6 +88,14 @@ class CandleStore:
     def n_bars(self, sym):
         return len(self.bars.get(sym, []))
 
+    def last_price(self, sym):
+        """Most recent price: the forming bar's close, else the last closed close."""
+        fm = self.forming.get(sym)
+        if fm:
+            return fm[4]
+        bars = self.bars.get(sym)
+        return bars[-1][4] if bars else None
+
     # ── DEV-only seed (local cache as initial history; DO NOT use for live pure-CMC) ──
     def seed_from_cache(self, cache_dir, symbols, max_bars=None):
         mb = max_bars or self.max_bars

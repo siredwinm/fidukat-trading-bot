@@ -137,9 +137,17 @@ backtest/          Validation harness: eligible.py, validate.py (source-agnostic
   22% (8% buffer below the 30% gate), resumes only after recovery < 15% (hysteresis).
 - **Vol-targeting**: `risk = clamp(2% · ref_atr/atr, 0.4%, 5%)` — volatile setups get
   smaller size.
+- **Diversification**: per-position notional capped at 34% of equity, max 4 concurrent
+  positions — a single-name gap cannot blow the gate.
 - **Allowlist**: only the 15 validated tokens.
 - **Daily-trade guarantee**: take the best LONG signal if no trade yet and past 20:00
   UTC — still subject to the drawdown HALT (discipline beats quota).
+
+Signals are computed on **closed** 1H bars only (so live == backtest), while MTM, SL/TP
+checks, and entries use the **current** price from the latest quote. All HTTPS calls use
+verified TLS. The LLM veto treats market data as untrusted (prompt-injection guard) and
+can only skip a trade. Every open/close is written to `state/journal.jsonl`; `--report`
+prints a human-readable summary (equity, drawdown, win rate, recent trades).
 
 ---
 
