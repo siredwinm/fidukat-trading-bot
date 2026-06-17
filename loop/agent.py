@@ -304,6 +304,10 @@ def report():
 
 
 def main():
+    if "--doctor" in sys.argv:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+        import doctor
+        sys.exit(doctor.main())
     a = Agent()
     if "--report" in sys.argv:
         report()

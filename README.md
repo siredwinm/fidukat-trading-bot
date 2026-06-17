@@ -99,7 +99,9 @@ backtest/          Validation harness (eligible.py, validate.py, fetch_data.py).
 
 Full rationale and data-layer details: see **[DESIGN.md](DESIGN.md)**.
 Setup and run instructions: see **[docs/SETUP.md](docs/SETUP.md)**.
+Deploy & operate (systemd/Docker, go-live, monitoring): see **[docs/RUNBOOK.md](docs/RUNBOOK.md)**.
 Strategy methodology and results: see **[docs/STRATEGY.md](docs/STRATEGY.md)**.
+Track 2 (CMC Strategy Skill — backtestable spec): see **[track2/](track2/)**.
 
 ## Sponsor stack (all three layers → three special prizes)
 
@@ -137,6 +139,7 @@ uv venv --python 3.11 .venv
 uv pip install --python .venv/bin/python -r requirements.txt
 cp .env.example .env            # add CMC_API_KEY (free tier is enough); keep TWAK_LIVE=0
 
+.venv/bin/python loop/agent.py --doctor   # preflight: keys, data, TWAK, warmup, config
 .venv/bin/python loop/agent.py --poll     # test connectivity + start building candles
 .venv/bin/python loop/agent.py --loop     # poll every 5 min, evaluate hourly (paper if TWAK_LIVE=0)
 .venv/bin/python loop/agent.py --report      # text status (equity, drawdown, win rate, trades)
@@ -163,6 +166,8 @@ window opens so the 1H candle history warms up. Full details in
   input (prompt-injection guard) and can only skip a trade, never create one.
 - **Trade journal** (`state/journal.jsonl`) records every open/close with PnL and
   reason; `--report` summarizes it for humans / judges.
+- **Tested** — `python -m pytest -q` (21 tests: signal, governor, sizing, veto chain,
+  candle store; no network or keys needed) and `--doctor` for a live preflight check.
 
 ## License
 

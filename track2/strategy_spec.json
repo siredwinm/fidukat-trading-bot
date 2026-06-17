@@ -1,0 +1,97 @@
+{
+  "name": "Fidukat Supertrend \u2014 ETH",
+  "symbol": "ETH",
+  "timeframe": "1h",
+  "direction": "long_only",
+  "signal": {
+    "type": "supertrend",
+    "params": {
+      "period": 10,
+      "multiplier": 3
+    }
+  },
+  "entry": {
+    "on": "supertrend_flip_up",
+    "side": "long"
+  },
+  "exit": {
+    "stop_loss_pct": 2.0,
+    "take_profit_pct": 6.0,
+    "max_hold_hours": 48,
+    "on": [
+      "supertrend_flip_down"
+    ]
+  },
+  "sizing": {
+    "method": "volatility_target",
+    "base_risk": 0.02,
+    "reference_atr_pct": 2.0,
+    "min_risk": 0.004,
+    "max_risk": 0.05,
+    "max_position_fraction": 0.34
+  },
+  "risk": {
+    "drawdown_derisk_start": 0.12,
+    "drawdown_halt": 0.22,
+    "drawdown_resume": 0.15,
+    "max_concurrent": 4,
+    "allowlist": [
+      "DOGE",
+      "UNI",
+      "DOT",
+      "COMP",
+      "AVAX",
+      "ACH",
+      "ETH",
+      "BCH",
+      "FIL",
+      "ZIL",
+      "YFI",
+      "TRX",
+      "1INCH",
+      "AAVE",
+      "XRP"
+    ],
+    "min_trades_per_day": 1
+  },
+  "costs": {
+    "fee_per_side_pct": 0.05
+  },
+  "validation": {
+    "method": "2-year 1H re-backtest, Monte Carlo x500 on the eligible universe",
+    "expectancy_r": 0.108,
+    "monte_carlo_drawdown_pct": 18,
+    "selected_over": "ATR/Volume/Donchian/VCP breakouts",
+    "rejected_signals": [
+      {
+        "signal": "ATR Breakout",
+        "exp_r": 0.045,
+        "mc_drawdown_pct": 51,
+        "why": "drawdown risks the 30% gate"
+      },
+      {
+        "signal": "Volume Breakout",
+        "exp_r": 0.015,
+        "mc_drawdown_pct": 60,
+        "why": "weak edge, high drawdown"
+      },
+      {
+        "signal": "Donchian",
+        "exp_r": 0.005,
+        "mc_drawdown_pct": 66,
+        "why": "high drawdown"
+      },
+      {
+        "signal": "VCP",
+        "exp_r": -0.033,
+        "mc_drawdown_pct": 57,
+        "why": "negative expectancy"
+      }
+    ]
+  },
+  "data_inputs": [
+    "get_crypto_quotes_latest (1H candles built in-agent)",
+    "get_crypto_technical_analysis (context)",
+    "get_global_crypto_derivatives_metrics / fear-and-greed (context)"
+  ]
+}

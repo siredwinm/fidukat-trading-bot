@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fidukat backtestable strategy spec",
+  "type": "object",
+  "required": ["name", "symbol", "timeframe", "signal", "entry", "exit", "sizing", "risk", "costs"],
+  "properties": {
+    "name": {"type": "string"},
+    "symbol": {"type": "string", "description": "Token symbol, e.g. ETH"},
+    "timeframe": {"type": "string", "description": "Candle interval", "examples": ["1h"]},
+    "direction": {"type": "string", "enum": ["long_only", "long_short"]},
+    "signal": {
+      "type": "object",
+      "required": ["type", "params"],
+      "properties": {
+        "type": {"type": "string", "examples": ["supertrend"]},
+        "params": {"type": "object", "description": "e.g. {period:10, multiplier:3}"}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "description": "Rule that opens a position",
+      "examples": [{"on": "supertrend_flip_up", "side": "long"}]
+    },
+    "exit": {
+      "type": "object",
+      "required": ["stop_loss_pct", "take_profit_pct", "max_hold_hours"],
+      "properties": {
+        "stop_loss_pct": {"type": "number"},
+        "take_profit_pct": {"type": "number"},
+        "max_hold_hours": {"type": "integer"},
+        "on": {"type": "array", "items": {"type": "string"}, "description": "extra exits, e.g. supertrend_flip_down"}
+      }
+    },
+    "sizing": {
+      "type": "object",
+      "required": ["method"],
+      "properties": {
+        "method": {"type": "string", "enum": ["volatility_target", "fixed_fraction"]},
+        "base_risk": {"type": "number", "description": "fraction of equity risked at reference vol"},
+        "reference_atr_pct": {"type": "number"},
+        "min_risk": {"type": "number"}, "max_risk": {"type": "number"},
+        "max_position_fraction": {"type": "number", "description": "cap notional vs equity"}
+      }
+    },
+    "risk": {
+      "type": "object",
+      "description": "Portfolio-level guardrails",
+      "properties": {
+        "drawdown_derisk_start": {"type": "number"},
+        "drawdown_halt": {"type": "number"},
+        "drawdown_resume": {"type": "number"},
+        "max_concurrent": {"type": "integer"},
+        "allowlist": {"type": "array", "items": {"type": "string"}},
+        "min_trades_per_day": {"type": "integer"}
+      }
+    },
+    "costs": {
+      "type": "object",
+      "required": ["fee_per_side_pct"],
+      "properties": {"fee_per_side_pct": {"type": "number"}}
+    },
+    "validation": {
+      "type": "object",
+      "description": "Out-of-the-box evidence for this spec (informational)",
+      "properties": {
+        "method": {"type": "string"},
+        "expectancy_r": {"type": "number"},
+        "monte_carlo_drawdown_pct": {"type": "number"},
+        "rejected_signals": {"type": "array", "items": {"type": "object"}}
+      }
+    },
+    "data_inputs": {"type": "array", "items": {"type": "string"},
+      "description": "CoinMarketCap Agent Hub endpoints/tools used"}
+  }
+}

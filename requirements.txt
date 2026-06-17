@@ -7,6 +7,9 @@ python-dotenv>=1.0
 # Install when registering identity:  pip install bnbagent
 # bnbagent>=0.1
 
+# Dev/test only:
+# pytest>=8        # run: python -m pytest -q  (tests/ — no network or keys needed)
+
 # Note: CoinMarketCap and Trust Wallet Agent Kit need no Python deps here —
 # CMC is called over HTTPS via the stdlib, and TWAK is the `twak` CLI (installed
 # separately via https://agent-kit.trustwallet.com/install.sh).
