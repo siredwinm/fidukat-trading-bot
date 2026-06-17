@@ -40,8 +40,9 @@ bullish). Therefore:
 
 - **Entry signal** → deterministic Supertrend (validated).
 - **Sizing, exits, drawdown** → deterministic governor.
-- **LLM (Claude)** → only answers *"is there a strong reason to SKIP this entry?"*
-  using CMC market context. Default: do not veto. The LLM is an extra brake, not a
+- **LLM** → only answers *"is there a strong reason to SKIP this entry?"* using CMC
+  market context. Defaults to DeepSeek V4 Flash via OpenCode (~90% cheaper than
+  Anthropic; provider-pluggable). Default: do not veto. The LLM is an extra brake, not a
   throttle.
 
 This is also the **differentiating narrative** for the judges: an agent that
@@ -93,7 +94,8 @@ data/cmc.py        CMC client: Pro REST (free batch quotes, Fear & Greed) + Agen
 data/candles.py    CandleStore: poll quotes -> 1H OHLC, persists across restarts.
 signals/core.py    Deterministic Supertrend. Identical to the backtest engine
                    (cross-checked on 29 tokens: 0 mismatch -> live == validated).
-signals/veto.py    LLM veto: Claude (Haiku) + CMC context (F&G, derivatives).
+signals/veto.py    LLM veto + CMC context (F&G, derivatives). Default = DeepSeek V4
+                   Flash via OpenCode (~90% cheaper than Anthropic); pluggable.
                    Vetoes only; default allow; safe fallback without a key.
 risk/governor.py   Vol-targeted sizing, drawdown governor (de-risk @12%, HALT @22% <
                    30% gate, hysteresis), SL/TP/hold, >=1 trade/day, allowlist.
@@ -113,7 +115,7 @@ backtest/          Validation harness: eligible.py, validate.py (source-agnostic
 ```mermaid
 flowchart LR
     CMC["CoinMarketCap Agent Hub"] -->|batch quotes| CS["Candle Store (1H)"]
-    CMC -->|Fear&Greed, derivatives| V["LLM Veto (Claude Haiku)"]
+    CMC -->|Fear&Greed, derivatives| V["LLM Veto (DeepSeek V4 via OpenCode)"]
     CS --> SIG["Supertrend (closed bars)"]
     SIG --> GOV["Risk Governor<br/>sizing · drawdown · allowlist"]
     V -->|may skip| GOV
@@ -189,8 +191,9 @@ prints a human-readable summary (equity, drawdown, win rate, recent trades).
 ## 8. Status & remaining work
 
 **Done & tested (paper):** backtest, all modules, candle store from real CMC quotes,
-veto (real CMC inputs verified; only needs `ANTHROPIC_API_KEY` for the Claude call),
-TWAK adapter with the real CLI syntax (dry-run), ERC-8004 identity wrapper.
+veto (real CMC inputs verified; needs an OpenCode/DeepSeek key — `VETO_API_KEY` — for
+the LLM call), TWAK adapter with the real CLI syntax (dry-run), ERC-8004 identity wrapper,
+HTML dashboard.
 
 **Remaining:** (1) set up TWAK credentials + test one testnet swap; (2) register
 ERC-8004 identity (BNB SDK) for the special prize; (3) warm up live + register for the

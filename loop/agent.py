@@ -80,8 +80,8 @@ class Agent:
         self.store = CandleStore(os.path.join(STATE_DIR, "candles"))
         if self.use_store and SEED_CACHE:
             self.store.seed_from_cache(CACHE_DIR, gov.ALLOWLIST)
-        # LLM veto (optional): active when ANTHROPIC_API_KEY is present
-        self.llm_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        # LLM veto (optional): active when any provider key is configured (fallback chain)
+        self.llm_on = veto.enabled()
         self._macro_hour = None
         self._macro_ctx = {}
 
@@ -127,14 +127,14 @@ class Agent:
         """CMC macro context, cached per hour (2 global calls)."""
         h = now_utc().strftime("%Y-%m-%d-%H")
         if self._macro_hour != h:
-            self._macro_ctx = veto.macro_context(self.cmc) if self.llm_key else {}
+            self._macro_ctx = veto.macro_context(self.cmc) if self.llm_on else {}
             self._macro_hour = h
         return self._macro_ctx
 
     def veto(self, sym, snap):
-        if not self.llm_key:
+        if not self.llm_on:
             return False
-        v, reason = veto.veto_entry(sym, snap, self._macro(), self.llm_key)
+        v, reason = veto.veto_entry(sym, snap, self._macro())
         if v:
             print(f"  VETO {sym}: {reason}")
         return v
@@ -307,6 +307,11 @@ def main():
     a = Agent()
     if "--report" in sys.argv:
         report()
+        return
+    if "--report-html" in sys.argv:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+        import reporting
+        print("wrote", reporting.build())
         return
     if "--poll" in sys.argv:   # single quote poll -> update candle store, then exit
         a.poll()

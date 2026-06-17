@@ -45,8 +45,9 @@ gate, and get cut. **Fidukat is built for the gate, not against it:**
 - **Trade decisions are 100% deterministic** — a Supertrend signal that won a 2-year
   backtest (highest expectancy *and* lowest drawdown of five candidates).
 - **The LLM may only VETO, never decide.** Research shows an LLM that "picks the
-  direction" tends to lose and skews bullish. Here Claude only answers *"is there a
-  clear reason to skip this rule-based entry?"* using CoinMarketCap context.
+  direction" tends to lose and skews bullish. Here the LLM only answers *"is there a
+  clear reason to skip this rule-based entry?"* using CoinMarketCap context. It defaults
+  to **DeepSeek V4 Flash via OpenCode — ~90% cheaper than Anthropic** (provider-pluggable).
 - **A drawdown governor brakes hard at 22%** — an 8% buffer below the 30% gate.
 
 Fidukat wins by restraint, not aggression.
@@ -82,8 +83,9 @@ data/candles.py    Candle store: builds its own 1H OHLC from CMC quote polling
                    (free-tier CMC has no historical OHLCV). Persists across restarts.
 signals/core.py    Deterministic Supertrend — identical to the backtest engine
                    (cross-checked on 29 tokens: 0 mismatch -> live == validated).
-signals/veto.py    LLM veto (Claude Haiku) + CMC context. Vetoes only; safe no-op
-                   without ANTHROPIC_API_KEY.
+signals/veto.py    LLM veto + CMC context. Default = DeepSeek V4 Flash via OpenCode
+                   (~90% cheaper than Anthropic); provider-pluggable. Vetoes only;
+                   safe no-op without a key. Anthropic optional backup.
 risk/governor.py   Volatility-targeted sizing, drawdown governor (de-risk @12%,
                    HALT @22%, hysteresis), SL/TP/hold, >=1 trade/day, token allowlist.
 execution/twak.py  Trust Wallet Agent Kit = the sole execution layer. Self-custody
@@ -110,6 +112,24 @@ Strategy methodology and results: see **[docs/STRATEGY.md](docs/STRATEGY.md)**.
 - **BNB Chain** — execution venue (PancakeSwap via TWAK) + on-chain competition
   registration (`0x212c61b9b72c95d95bf29cf032f5e5635629aed5`).
 
+## Cost-efficient by design
+
+The LLM is a *veto*, so it runs rarely and cheaply — and the default provider makes it
+cheaper still. Fidukat defaults to **DeepSeek V4 Flash via OpenCode** (OpenAI-compatible,
+flat low-cost subscription), not a premium model:
+
+| Veto model | Input / Output ($/1M) | vs Anthropic Opus |
+|---|---|---|
+| **DeepSeek V4 Flash** (default) | **$0.14 / $0.28** | **~97% cheaper** |
+| Claude Haiku 4.5 | $1.00 / $5.00 | ~80% cheaper than Opus |
+| Claude Opus 4.x | $5.00 / $25.00 | — |
+
+Because the veto fires only on signal flips, total LLM spend for the whole competition
+week is cents. A **fallback chain** keeps it reliable: OpenCode → OpenRouter →
+DeepSeek-direct (each tier set by an env key, tried in order). And the veto **fails
+open** — if every provider is unreachable, no veto fires and the validated rule-based
+strategy simply proceeds. On-chain trading stays 100% self-custody via TWAK regardless.
+
 ## Quickstart
 
 ```bash
@@ -119,7 +139,8 @@ cp .env.example .env            # add CMC_API_KEY (free tier is enough); keep TW
 
 .venv/bin/python loop/agent.py --poll     # test connectivity + start building candles
 .venv/bin/python loop/agent.py --loop     # poll every 5 min, evaluate hourly (paper if TWAK_LIVE=0)
-.venv/bin/python loop/agent.py --report   # human-readable status (equity, drawdown, win rate, trades)
+.venv/bin/python loop/agent.py --report      # text status (equity, drawdown, win rate, trades)
+.venv/bin/python loop/agent.py --report-html # HTML dashboard -> state/report.html (PnL calendar, equity curve)
 ```
 
 Going live: install TWAK (`curl -fsSL https://agent-kit.trustwallet.com/install.sh |

@@ -37,9 +37,17 @@ Because OHLCV is gated, Fidukat **builds its own 1H candles** from quote polling
 
 ## 4. LLM veto (optional)
 
-Set `ANTHROPIC_API_KEY` in `.env` to enable the Claude veto (model `VETO_MODEL`,
-default `claude-haiku-4-5-20251001`). Without it, the veto is a safe no-op and the
-pure rule-based strategy runs. The LLM can only *skip* an entry, never create one.
+The veto defaults to **DeepSeek V4 Flash via OpenCode** (OpenAI-compatible, ~90%+
+cheaper than Anthropic). Subscribe to [OpenCode Go](https://opencode.ai/docs/go/)
+(flat low-cost) or use [OpenCode Zen](https://opencode.ai/docs/zen/) pay-as-you-go,
+copy your key from <https://opencode.ai/auth>, and set `VETO_API_KEY` in `.env`. The
+defaults (`VETO_PROVIDER=openai`, `VETO_MODEL=deepseek-v4-flash`,
+`VETO_BASE_URL=https://opencode.ai/zen/go/v1`) are already in `.env.example`.
+
+Alternatives: point `VETO_BASE_URL` at `https://api.deepseek.com` to call DeepSeek
+directly, or set `VETO_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` for Claude. Without
+any key the veto is a safe no-op and the pure rule-based strategy runs. The LLM can
+only *skip* an entry, never create one.
 
 ## 5. Trust Wallet Agent Kit (execution)
 
