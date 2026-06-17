@@ -1,0 +1,12 @@
+# Core (backtest + agent loop)
+numpy>=1.26
+pandas>=2.1
+python-dotenv>=1.0
+
+# Optional: BNB AI Agent SDK — ERC-8004 on-chain agent identity (integration/identity.py).
+# Install when registering identity:  pip install bnbagent
+# bnbagent>=0.1
+
+# Note: CoinMarketCap and Trust Wallet Agent Kit need no Python deps here —
+# CMC is called over HTTPS via the stdlib, and TWAK is the `twak` CLI (installed
+# separately via https://agent-kit.trustwallet.com/install.sh).

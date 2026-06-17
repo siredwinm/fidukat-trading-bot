@@ -1,0 +1,32 @@
+# Secrets & wallet
+.env
+.env.*
+!.env.example
+*.keystore
+wallets/
+
+# Data cache (besar; jangan publik)
+backtest/data/*.json
+!backtest/data/.gitkeep
+
+# Riset edge — JANGAN publik (lindungi FINDINGS Hermes)
+FINDINGS*.md
+NOTES-private*.md
+
+# Fetcher data backtest PRIVAT — sumber pihak ketiga, jangan publik.
+# (Backtest = riset privat; live & repo publik 100% CMC.)
+*_private.py
+backtest/fetch_private.py
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs / state runtime
+logs/
+state/
+state.json
+*.log
+.DS_Store
