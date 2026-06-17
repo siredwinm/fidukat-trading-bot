@@ -44,6 +44,14 @@ DD_RESUME = 0.15         # reopen only after recovering below this (hysteresis)
 
 # ── daily trade guarantor ──
 FORCE_TRADE_AFTER_UTC_HOUR = 20  # if no trade yet today & already >= this UTC hour
+KEEPALIVE_FRAC = 0.015           # tiny size for the daily-rule keepalive trade
+KEEPALIVE_MIN_USD = 15.0         # floor so the swap clears minimums
+
+
+def keepalive_size_usd(equity: float) -> float:
+    """Tiny notional for the daily-trade-rule keepalive — satisfies >=1 trade/day
+    without letting forced (non-signal) trades drag PnL or drawdown."""
+    return max(KEEPALIVE_MIN_USD, equity * KEEPALIVE_FRAC)
 
 
 def is_allowed(symbol: str) -> bool:

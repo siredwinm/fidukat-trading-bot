@@ -11,6 +11,28 @@ BNB Chain) — **Track 1, Autonomous Trading Agents**.
 
 ---
 
+## How it works (in plain words)
+
+Every 5 minutes Fidukat reads live prices from CoinMarketCap and builds its own hourly
+candles. Once an hour it asks one question per coin: *is this coin clearly starting an
+uptrend?* (the Supertrend rule). If yes — and a quick AI sanity-check doesn't object —
+it buys a measured amount using **its own self-custody wallet** (Trust Wallet), spreading
+across up to 4 coins. Each position has a fixed exit: take profit at +6%, stop loss at
+−2%, or leave after 48h. A **"governor"** shrinks the bets as losses grow and stops
+trading entirely well before the −30% line that disqualifies you. The AI never decides
+*what* to trade — it can only veto. Think of it as a careful fiduciary, not a gambler.
+
+**See it for yourself — no keys, no risk:**
+
+```bash
+.venv/bin/python simulate.py     # replays the full bot on 2 years of history
+```
+
+It prints exactly how the bot would have traded: return, max drawdown, win rate, and
+whether it stays inside the 30% gate.
+
+---
+
 ## The thesis
 
 Track 1 is scored on **live PnL with a hard drawdown gate**: exceed ~30% max

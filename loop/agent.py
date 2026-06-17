@@ -158,10 +158,12 @@ class Agent:
                       pnl=round(pnl, 2), pnl_pct=round(pnl_pct, 2), reason=reason)
         print(f"  CLOSE {sym} @ {px:.6f} ({reason}) pnl=${pnl:.2f} ({pnl_pct:+.1f}%)")
 
-    def _open_long(self, sym, price, atr_pct, equity):
+    def _open_long(self, sym, price, atr_pct, equity, keepalive=False):
         """Spot LONG: USDT -> TOKEN (TWAK = spot only, no shorts). Entry at the
-        current price; size capped for diversification (see governor)."""
-        notional = self.gov.position_size_usd(equity, atr_pct)
+        current price. Normal trades use vol-targeted+capped size; keepalive trades
+        (daily-rule) use a tiny size so they don't drag PnL."""
+        notional = (gov.keepalive_size_usd(equity) if keepalive
+                    else self.gov.position_size_usd(equity, atr_pct))
         notional = min(notional, self.cash * 0.95)
         if notional < 10:
             return False
@@ -174,9 +176,9 @@ class Agent:
                                "sl": sl, "tp": tp, "t_open": now_utc().isoformat()}
         self.gov.record_trade()
         self._journal("OPEN", sym, price=price, qty=qty, notional=notional,
-                      reason="supertrend-long", atr_pct=atr_pct)
-        print(f"  OPEN LONG {sym} @ {price:.6f} notional=${notional:.0f} "
-              f"sl={sl:.6f} tp={tp:.6f} atr%={atr_pct*100:.2f}")
+                      reason="keepalive" if keepalive else "supertrend-long", atr_pct=atr_pct)
+        print(f"  OPEN {'KEEPALIVE' if keepalive else 'LONG'} {sym} @ {price:.6f} "
+              f"notional=${notional:.0f} sl={sl:.6f} tp={tp:.6f} atr%={atr_pct*100:.2f}")
         return True
 
     def run_once(self):
@@ -238,13 +240,20 @@ class Agent:
                     break
                 self._open_long(sym, prices[sym], snap.atr_pct, equity)
 
-            # 3) guarantee >=1 trade/day
+            # 3) guarantee >=1 trade/day (competition rule). Supertrend flips are sparse,
+            #    so if none fired today, enter the most stable token already in an
+            #    uptrend (direction +1) — a valid trend-following entry, not a fresh flip.
             if (self.gov.needs_forced_trade(hour) and self.gov.s.trades_today == 0
-                    and candidates and len(self.positions) < gov.MAX_CONCURRENT):
-                sym, snap = candidates[0]
-                if sym not in self.positions:
-                    print("  [daily forced-trade]")
-                    self._open_long(sym, prices[sym], snap.atr_pct, equity)
+                    and len(self.positions) < gov.MAX_CONCURRENT and self.cash >= 15):
+                pool = candidates or [
+                    (s, snaps[s]) for s in snaps
+                    if snaps[s].direction == 1 and s not in self.positions
+                    and s in prices and not self.veto(s, snaps[s])
+                ]
+                if pool:
+                    sym, snap = min(pool, key=lambda x: x[1].atr_pct)  # most stable
+                    print(f"  [daily keepalive] {sym}")
+                    self._open_long(sym, prices[sym], snap.atr_pct, equity, keepalive=True)
 
         # 4) persist
         self.gov.update_equity(equity)
