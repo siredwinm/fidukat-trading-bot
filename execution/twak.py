@@ -46,11 +46,16 @@ class TWAK:
         self.dry_run = DRY_RUN if dry_run is None else dry_run
 
     # ── CLI runner ──
-    def _run(self, parts):
-        cmd = [CLI_BIN] + parts + ["--json"]
-        if PASSWORD and "--password" not in parts:
+    # Flags verified against `twak` v0.19.1: only append --json / --password to commands
+    # that accept them (swap/wallet/price/compete take --json; swap & compete register
+    # need --password; x402 takes neither). CLI_BIN may be multi-word ("npx @trustwallet/cli").
+    def _run(self, parts, want_json=True, password=False):
+        cmd = shlex.split(CLI_BIN) + parts
+        if want_json:
+            cmd += ["--json"]
+        if password and PASSWORD:
             cmd += ["--password", PASSWORD]
-        printable = " ".join(shlex.quote(p) for p in ([CLI_BIN] + parts))
+        printable = " ".join(shlex.quote(p) for p in cmd)
         if self.dry_run:
             print(f"[DRY] {printable}")
             return {"dry_run": True, "cmd": printable}
@@ -67,9 +72,12 @@ class TWAK:
         except json.JSONDecodeError:
             return {"raw": out.stdout.strip()}
 
-    # ── competition registration (twak compete register / MCP competition_register) ──
+    # ── competition registration: `twak compete register` (BSC-only — no --chain; needs --password) ──
     def register_competition(self):
-        return self._run(["compete", "register", "--chain", self.chain])
+        return self._run(["compete", "register"], password=True)
+
+    def compete_status(self):
+        return self._run(["compete", "status"])
 
     # ── wallet ──
     def wallet_address(self):
@@ -92,12 +100,12 @@ class TWAK:
 
     # ── spot swap (execution core) ──
     def swap(self, amount, from_token, to_token, quote_only=False):
-        """twak swap <amount> <from> <to> --chain bsc --slippage <pct>."""
+        """twak swap <amount> <from> <to> --chain bsc --slippage <pct> [--quote-only]."""
         parts = ["swap", str(amount), from_token, to_token,
                  "--chain", self.chain, "--slippage", str(self.slippage)]
         if quote_only:
             parts.append("--quote-only")
-        return self._run(parts)
+        return self._run(parts, password=not quote_only)   # signing needs --password
 
     def open_long(self, token, usd_amount):
         """LONG: USDT -> TOKEN."""
@@ -107,12 +115,17 @@ class TWAK:
         """Close LONG: TOKEN -> USDT."""
         return self.swap(token_amount, token, USDT)
 
-    # ── native x402 (special prize point: pay per-call) ──
-    def x402_request(self, url, max_payment, prefer_network=None):
-        parts = ["x402", "request", url, "--max-payment", str(max_payment), "--yes"]
+    # ── native x402 (special prize point: pay per-call). Flags per `twak x402 info`:
+    #    --max-payment (atomic units), --method, --body, --prefer-network. No --json/--password. ──
+    def x402_request(self, url, max_payment, prefer_network=None, method=None, body=None):
+        parts = ["x402", "request", url, "--max-payment", str(max_payment)]
         if prefer_network:
             parts += ["--prefer-network", prefer_network]
-        return self._run(parts)
+        if method:
+            parts += ["--method", method]
+        if body:
+            parts += ["--body", body]
+        return self._run(parts, want_json=False, password=False)
 
 
 if __name__ == "__main__":
