@@ -28,6 +28,31 @@ import subprocess
 
 COMP_CONTRACT = "0x212c61b9b72c95d95bf29cf032f5e5635629aed5"  # BSC competition contract
 USDT = "USDT"
+
+# Verified BEP-20 contract addresses on BSC. CRITICAL: bare symbols are NOT safe on
+# TWAK's BSC token registry — most allowlist symbols return "Unknown token", and a few
+# (DOGE/AVAX/TRX) SILENTLY MIS-ROUTE to BNB instead of erroring. So we always swap by
+# contract address and refuse unknown symbols. Verified 18 Jun 2026 via
+# `twak swap 50 USDT <addr> --chain bsc --quote-only` (output symbol matched 16/16).
+BSC_TOKENS = {
+    "USDT":  "0x55d398326f99059fF775485246999027B3197955",  # BSC-USD (Binance-Peg)
+    "ETH":   "0x2170Ed0880ac9A755fd29B2688956BD959F933F8",
+    "DOGE":  "0xbA2aE424d960c26247Dd6c32edC70B295c744C43",
+    "UNI":   "0xBf5140A22578168FD562DCcF235E5D43A02ce9B1",
+    "DOT":   "0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402",
+    "COMP":  "0x52CE071Bd9b1C4B00A0b92D298c512478CaD67e8",
+    "AVAX":  "0x1CE0c2827e2eF14D5C4f29a091d735A204794041",
+    "ACH":   "0xBc7d6B50616989655AfD682fb42743507003056D",
+    "BCH":   "0x8fF795a6F4D97E7887C79beA79aba5cc76444aDf",
+    "FIL":   "0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F9aE153",
+    "ZIL":   "0xb86AbCb37C3A4B64f74f59301AFF131a1BEcC787",
+    "YFI":   "0x88f1A5ae2A3BF98AEAF342D26B30a79438c9142e",
+    "TRX":   "0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3",
+    "1INCH": "0x111111111117dC0aa78b770fA6A738034120C302",
+    "AAVE":  "0xfb6115445Bff7b52FeB98650C87f44907E58f802",
+    "XRP":   "0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE",
+}
+
 CHAIN = os.environ.get("TWAK_CHAIN", "bsc")
 DRY_RUN = os.environ.get("TWAK_LIVE", "0") != "1"            # default: do not send txs
 CLI_BIN = os.environ.get("TWAK_CLI", "twak")                 # installer installs `twak`
@@ -98,10 +123,26 @@ class TWAK:
     def price(self, token):
         return self._run(["price", token, "--chain", self.chain])
 
+    # ── token resolution (BSC) ──
+    def _resolve(self, token):
+        """Map a symbol to its verified BSC contract address. Pass through anything that
+        already looks like an address (0x…). On BSC, REFUSE unknown symbols rather than
+        letting TWAK silently mis-route them (e.g. DOGE/AVAX/TRX -> BNB)."""
+        if token.startswith("0x") and len(token) == 42:
+            return token
+        if self.chain != "bsc":
+            return token   # map is BSC-specific; other chains use symbols
+        addr = BSC_TOKENS.get(token.upper())
+        if not addr:
+            raise TWAKError(f"no verified BSC contract for {token!r} — refusing to swap "
+                            f"(bare symbols mis-route on TWAK BSC). Add it to BSC_TOKENS.")
+        return addr
+
     # ── spot swap (execution core) ──
     def swap(self, amount, from_token, to_token, quote_only=False):
-        """twak swap <amount> <from> <to> --chain bsc --slippage <pct> [--quote-only]."""
-        parts = ["swap", str(amount), from_token, to_token,
+        """twak swap <amount> <from> <to> --chain bsc --slippage <pct> [--quote-only].
+        Tokens are resolved to verified BSC contract addresses before the call."""
+        parts = ["swap", str(amount), self._resolve(from_token), self._resolve(to_token),
                  "--chain", self.chain, "--slippage", str(self.slippage)]
         if quote_only:
             parts.append("--quote-only")
