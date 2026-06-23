@@ -53,6 +53,18 @@ BSC_TOKENS = {
     "XRP":   "0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE",
 }
 
+# On-chain token decimals (verified 23 Jun 2026 via balanceOf/decimals() against BSC RPC).
+# CRITICAL: TWAK assumes 18 decimals for non-registry tokens, so SELLING a token with
+# fewer decimals makes it compute qty*1e18 base units >> real balance -> the swap reverts
+# (quotes still succeed since they price off an API, not the on-chain balance). We must
+# pass --decimals for any source token that is not 18. Only non-18 tokens need listing.
+BSC_DECIMALS = {
+    "DOGE": 8,
+    "ACH":  8,
+    "ZIL":  12,
+    "TRX":  6,
+}
+
 CHAIN = os.environ.get("TWAK_CHAIN", "bsc")
 DRY_RUN = os.environ.get("TWAK_LIVE", "0") != "1"            # default: do not send txs
 CLI_BIN = os.environ.get("TWAK_CLI", "twak")                 # installer installs `twak`
@@ -144,6 +156,13 @@ class TWAK:
         Tokens are resolved to verified BSC contract addresses before the call."""
         parts = ["swap", str(amount), self._resolve(from_token), self._resolve(to_token),
                  "--chain", self.chain, "--slippage", str(self.slippage)]
+        # Source token amount is denominated in the source token's units. For non-18
+        # tokens TWAK would otherwise assume 18 decimals and revert the swap (see
+        # BSC_DECIMALS note). Only the SOURCE token's decimals matter for the amount.
+        if self.chain == "bsc":
+            dec = BSC_DECIMALS.get(str(from_token).upper())
+            if dec is not None and dec != 18:
+                parts += ["--decimals", str(dec)]
         if quote_only:
             parts.append("--quote-only")
         return self._run(parts, password=not quote_only)   # signing needs --password

@@ -165,7 +165,7 @@ class Agent:
         notional = (gov.keepalive_size_usd(equity) if keepalive
                     else self.gov.position_size_usd(equity, atr_pct))
         notional = min(notional, self.cash * 0.95)
-        if notional < 10:
+        if notional < 2:
             return False
         qty = notional / price
         sl, tp = gov.compute_levels(price, 1)
@@ -236,7 +236,7 @@ class Agent:
 
         if can_open:
             for sym, snap in candidates:
-                if len(self.positions) >= gov.MAX_CONCURRENT or self.cash < 15:
+                if len(self.positions) >= gov.MAX_CONCURRENT or self.cash < 2:
                     break
                 self._open_long(sym, prices[sym], snap.atr_pct, equity)
 
@@ -244,7 +244,7 @@ class Agent:
             #    so if none fired today, enter the most stable token already in an
             #    uptrend (direction +1) — a valid trend-following entry, not a fresh flip.
             if (self.gov.needs_forced_trade(hour) and self.gov.s.trades_today == 0
-                    and len(self.positions) < gov.MAX_CONCURRENT and self.cash >= 15):
+                    and len(self.positions) < gov.MAX_CONCURRENT and self.cash >= 2):
                 pool = candidates or [
                     (s, snaps[s]) for s in snaps
                     if snaps[s].direction == 1 and s not in self.positions

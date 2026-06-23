@@ -43,9 +43,9 @@ DD_HALT = 0.22           # STOP opening new positions — 8% buffer below the 30
 DD_RESUME = 0.15         # reopen only after recovering below this (hysteresis)
 
 # ── daily trade guarantor ──
-FORCE_TRADE_AFTER_UTC_HOUR = 20  # if no trade yet today & already >= this UTC hour
+FORCE_TRADE_AFTER_UTC_HOUR = 0   # on-demand: force the daily trade any time of day
 KEEPALIVE_FRAC = 0.015           # tiny size for the daily-rule keepalive trade
-KEEPALIVE_MIN_USD = 15.0         # floor so the swap clears minimums
+KEEPALIVE_MIN_USD = 2.0          # floor so the swap clears minimums (small-capital test)
 
 
 def keepalive_size_usd(equity: float) -> float:
