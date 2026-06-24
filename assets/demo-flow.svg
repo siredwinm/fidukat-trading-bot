@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Fidukat demo flow</title>
+  <desc id="desc">A visual storyboard showing how Fidukat turns market data into a self-custody BNB Chain trade.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#17324D"/>
+    </marker>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#17324D" flood-opacity="0.13"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="760" fill="#F5F0E6"/>
+  <text x="72" y="82" fill="#17324D" font-family="Inter, Arial, sans-serif" font-size="46" font-weight="850">Demo flow: one autonomous trade</text>
+  <text x="72" y="122" fill="#52616F" font-family="Inter, Arial, sans-serif" font-size="21">A deterministic signal opens the door. AI may close it. The governor decides size. TWAK signs locally.</text>
+
+  <g font-family="Inter, Arial, sans-serif">
+    <g transform="translate(72 178)" filter="url(#cardShadow)">
+      <rect width="300" height="160" rx="24" fill="#FFF9ED"/>
+      <rect x="0" y="0" width="300" height="12" rx="6" fill="#E6A817"/>
+      <text x="26" y="50" fill="#17324D" font-size="17" font-weight="800">1. CMC DATA</text>
+      <text x="26" y="86" fill="#17324D" font-size="25" font-weight="850">Quotes to candles</text>
+      <text x="26" y="120" fill="#52616F" font-size="17">15-token watchlist</text>
+      <text x="26" y="145" fill="#52616F" font-size="17">1H OHLC built in-agent</text>
+    </g>
+
+    <g transform="translate(450 178)" filter="url(#cardShadow)">
+      <rect width="300" height="160" rx="24" fill="#FFF9ED"/>
+      <rect x="0" y="0" width="300" height="12" rx="6" fill="#216B4E"/>
+      <text x="26" y="50" fill="#17324D" font-size="17" font-weight="800">2. RULE SIGNAL</text>
+      <text x="26" y="86" fill="#17324D" font-size="25" font-weight="850">Supertrend flips up</text>
+      <text x="26" y="120" fill="#52616F" font-size="17">TRX long candidate</text>
+      <text x="26" y="145" fill="#52616F" font-size="17">LLM did not pick it</text>
+    </g>
+
+    <g transform="translate(828 178)" filter="url(#cardShadow)">
+      <rect width="300" height="160" rx="24" fill="#FFF9ED"/>
+      <rect x="0" y="0" width="300" height="12" rx="6" fill="#C9432F"/>
+      <text x="26" y="50" fill="#17324D" font-size="17" font-weight="800">3. AI VETO</text>
+      <text x="26" y="86" fill="#17324D" font-size="25" font-weight="850">Only allowed to say no</text>
+      <text x="26" y="120" fill="#52616F" font-size="17">CMC context checked</text>
+      <text x="26" y="145" fill="#52616F" font-size="17">Default action: allow</text>
+    </g>
+
+    <path d="M382 258h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
+    <path d="M760 258h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
+
+    <g transform="translate(72 422)" filter="url(#cardShadow)">
+      <rect width="300" height="174" rx="24" fill="#17324D"/>
+      <text x="26" y="52" fill="#F5F0E6" font-size="17" font-weight="800">4. GOVERNOR</text>
+      <text x="26" y="90" fill="#F5F0E6" font-size="25" font-weight="850">Size and guard</text>
+      <text x="26" y="126" fill="#C7D2DD" font-size="17">3.26 USDT order</text>
+      <text x="26" y="151" fill="#C7D2DD" font-size="17">SL -2%, TP +6%, 48h hold</text>
+    </g>
+
+    <g transform="translate(450 422)" filter="url(#cardShadow)">
+      <rect width="300" height="174" rx="24" fill="#FFF9ED"/>
+      <text x="26" y="52" fill="#17324D" font-size="17" font-weight="800">5. TWAK EXECUTION</text>
+      <text x="26" y="90" fill="#17324D" font-size="25" font-weight="850">Local signing</text>
+      <text x="26" y="126" fill="#52616F" font-size="17">Keys stay on machine</text>
+      <text x="26" y="151" fill="#52616F" font-size="17">Swap: USDT to TRX</text>
+    </g>
+
+    <g transform="translate(828 422)" filter="url(#cardShadow)">
+      <rect width="300" height="174" rx="24" fill="#FFF9ED"/>
+      <text x="26" y="52" fill="#17324D" font-size="17" font-weight="800">6. BNB CHAIN PROOF</text>
+      <text x="26" y="90" fill="#17324D" font-size="25" font-weight="850">9.76 TRX received</text>
+      <text x="26" y="126" fill="#52616F" font-size="17">Tx: 0xaa99...f7e1</text>
+      <text x="26" y="151" fill="#52616F" font-size="17">Balance reconciled on-chain</text>
+    </g>
+
+    <path d="M222 350v50" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
+    <path d="M382 510h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
+    <path d="M760 510h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
+
+    <g transform="translate(72 660)">
+      <rect width="1056" height="48" rx="24" fill="#E6A817"/>
+      <text x="32" y="31" fill="#17324D" font-size="19" font-weight="850">Core promise:</text>
+      <text x="174" y="31" fill="#17324D" font-size="19">the LLM never creates a trade, never sizes it, and never signs it.</text>
+    </g>
+  </g>
+</svg>

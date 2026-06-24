@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">Fidukat README hero</title>
+  <desc id="desc">A modernist banner for Fidukat showing its self-custody, AI veto, and risk governor thesis.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#17324D" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="520" fill="#F5F0E6"/>
+  <circle cx="1020" cy="86" r="210" fill="#E6A817" opacity="0.18"/>
+  <circle cx="112" cy="444" r="180" fill="#216B4E" opacity="0.12"/>
+
+  <g transform="translate(72 70)">
+    <rect x="0" y="0" width="1056" height="380" rx="36" fill="#FFF9ED" filter="url(#shadow)"/>
+
+    <g transform="translate(70 70)">
+      <rect x="0" y="18" width="116" height="54" fill="#E6A817"/>
+      <rect x="0" y="102" width="116" height="54" fill="#C9432F"/>
+      <rect x="88" y="18" width="60" height="248" fill="#17324D"/>
+      <path d="M148 132 264 34v70l-78 64-38-36Z" fill="#216B4E"/>
+      <path d="m148 132 116 134h-78l-38-48V132Z" fill="#C9432F"/>
+    </g>
+
+    <g transform="translate(390 68)">
+      <text x="0" y="54" fill="#17324D" font-family="Inter, Arial, sans-serif" font-size="68" font-weight="800" letter-spacing="8">FIDUKAT</text>
+      <text x="4" y="104" fill="#17324D" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="700">The self-custody agent that knows when not to trade.</text>
+      <text x="4" y="146" fill="#52616F" font-family="Inter, Arial, sans-serif" font-size="20">Rules decide. AI vetoes. Risk stays governed.</text>
+    </g>
+
+    <g transform="translate(390 252)" font-family="Inter, Arial, sans-serif">
+      <g>
+        <rect x="0" y="0" width="138" height="78" rx="18" fill="#17324D"/>
+        <text x="22" y="31" fill="#F5F0E6" font-size="15" font-weight="700">2YR RETURN</text>
+        <text x="22" y="61" fill="#F5F0E6" font-size="30" font-weight="800">+8.3%</text>
+      </g>
+      <g transform="translate(154 0)">
+        <rect x="0" y="0" width="150" height="78" rx="18" fill="#216B4E"/>
+        <text x="18" y="31" fill="#F5F0E6" font-size="14" font-weight="700">MAX DRAWDOWN</text>
+        <text x="22" y="61" fill="#F5F0E6" font-size="30" font-weight="800">12.9%</text>
+      </g>
+      <g transform="translate(320 0)">
+        <rect x="0" y="0" width="150" height="78" rx="18" fill="#E6A817"/>
+        <text x="18" y="31" fill="#17324D" font-size="14" font-weight="800">GOVERNOR HALT</text>
+        <text x="22" y="61" fill="#17324D" font-size="30" font-weight="900">22%</text>
+      </g>
+      <g transform="translate(486 0)">
+        <rect x="0" y="0" width="166" height="78" rx="18" fill="#C9432F"/>
+        <text x="18" y="31" fill="#F5F0E6" font-size="14" font-weight="700">AI AUTHORITY</text>
+        <text x="18" y="61" fill="#F5F0E6" font-size="26" font-weight="800">VETO ONLY</text>
+      </g>
+    </g>
+
+    <g transform="translate(70 326)" font-family="Inter, Arial, sans-serif">
+      <rect x="0" y="0" width="906" height="1" fill="#E3D7C4"/>
+      <text x="0" y="42" fill="#52616F" font-size="18">BNB Chain spot execution via Trust Wallet Agent Kit, with CMC data and ERC-8004 identity.</text>
+    </g>
+  </g>
+</svg>

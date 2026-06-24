@@ -1,13 +1,49 @@
-# Fidukat — A Disciplined Self-Custody Trading Agent on BNB Chain
+<div align="center">
+
+<img src="assets/readme-hero.svg" alt="Fidukat — rules decide, AI vetoes, risk stays governed" width="960">
+
+# Fidukat
+
+**The self-custody trading agent that knows when not to trade.**
+
+Rules decide. AI vetoes. Risk stays governed.
+
+[On-chain proof](#on-chain-proof-bsc-mainnet--live-self-custody) ·
+[Backtest](#backtested-track-record-the-full-bot-2-years) ·
+[Architecture](#architecture) ·
+[Demo flow](#demo-flow) ·
+[Quickstart](#quickstart)
+
+![Track](https://img.shields.io/badge/Track%201-Autonomous%20Trading-F0B90B?style=flat-square)
+![Chain](https://img.shields.io/badge/BNB%20Chain-BSC-F0B90B?style=flat-square)
+![Execution](https://img.shields.io/badge/Execution-TWAK%20self--custody-17324D?style=flat-square)
+![AI](https://img.shields.io/badge/AI-veto%20only-C9432F?style=flat-square)
+![Max drawdown](https://img.shields.io/badge/backtest%20maxDD-12.9%25%20%3C%2030%25-216B4E?style=flat-square)
+
+Submission for **BNB Hack: AI Trading Agent Edition** (CoinMarketCap × Trust Wallet ×
+BNB Chain) — **Track 1, Autonomous Trading Agents**.
+
+</div>
+
+---
+
+## TL;DR — the whole submission in ten seconds
+
+- **Live, self-custody BSC agent:** Fidukat has an on-chain wallet, competition
+  registry entry, bootstrap swap, and a real TWAK-signed mainnet trade.
+- **AI is deliberately constrained:** the LLM can only veto a deterministic
+  Supertrend entry; it cannot invent trades, size positions, or sign transactions.
+- **Built for the drawdown gate:** the governor de-risks from 12% drawdown and
+  halts new entries at 22%, leaving an 8% buffer below the 30% disqualification line.
+- **Backtested as the full bot:** ~2 years, 15-token basket, +8.3% return,
+  12.9% max drawdown, 959 closed trades, 720/735 days with at least one trade.
+- **Sponsor stack is load-bearing:** CoinMarketCap data, Trust Wallet Agent Kit
+  execution, BNB AI Agent SDK identity, and BNB Chain proof.
 
 > **Fidukat** = *fidusia* (fiduciary) + *berkat* (grace). A fiduciary acts in the
 > principal's best interest and holds assets in trust — never gambling with what
 > isn't theirs to risk. That is the whole design: **your keys, your rules, capital
-> preserved first.** The agent trades on disciplined, pre-validated rules and refuses
-> to let an LLM gamble with your money.
-
-Submission for **BNB Hack: AI Trading Agent Edition** (CoinMarketCap × Trust Wallet ×
-BNB Chain) — **Track 1, Autonomous Trading Agents**.
+> preserved first.**
 
 ---
 
@@ -49,6 +85,19 @@ trading entirely well before the −30% line that disqualifies you. The AI never
 
 It prints exactly how the bot would have traded: return, max drawdown, win rate, and
 whether it stays inside the 30% gate.
+
+## Demo flow
+
+![Fidukat demo flow](assets/demo-flow.svg)
+
+For the demo video, show this exact sequence:
+
+1. `--report` dashboard/status: current equity, drawdown, positions, recent trades.
+2. Signal trace: CMC quote update → closed 1H candle → Supertrend LONG candidate.
+3. Veto trace: LLM receives CMC context and can only return allow/skip.
+4. Governor trace: sizing, SL/TP, drawdown state, and allowlist checks.
+5. TWAK execution: locally signed swap, then BscScan transaction proof.
+6. Reconciliation: wallet balance confirms the position size after the swap.
 
 ---
 
