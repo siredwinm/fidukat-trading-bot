@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Fidukat FK monogram</title>
+  <desc id="desc">A flat geometric FK monogram representing discipline and balance.</desc>
+  <rect width="1024" height="1024" fill="#F5F0E6"/>
+  <g>
+    <rect x="246" y="252" width="240" height="112" fill="#E6A817"/>
+    <rect x="246" y="430" width="240" height="112" fill="#C9432F"/>
+    <rect x="430" y="252" width="124" height="520" fill="#17324D"/>
+    <path d="M554 491 778 304v142L625 570l-71-79Z" fill="#216B4E"/>
+    <path d="m554 491 224 281H622l-68-89V491Z" fill="#C9432F"/>
+  </g>
+</svg>

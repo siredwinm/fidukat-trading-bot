@@ -65,6 +65,7 @@ def run(start_equity=1000.0):
     g = gov.RiskGovernor(start_equity)
     eq_peak, max_dd = start_equity, 0.0
     trades, days_traded = [], set()
+    curve = []                      # (timestamp, equity) for charting
 
     for t in master:
         day = __import__("time").strftime("%Y-%m-%d", __import__("time").gmtime(t))
@@ -74,6 +75,7 @@ def run(start_equity=1000.0):
         eq_peak = max(eq_peak, equity)
         if eq_peak > 0:
             max_dd = max(max_dd, (eq_peak - equity) / eq_peak)
+        curve.append((t, equity))
 
         # manage open positions (intrabar high/low; SL takes priority)
         for sym in list(positions):
@@ -169,7 +171,60 @@ def run(start_equity=1000.0):
     print("  Note: long-only spot (TWAK), capped sizing, drawdown governor — this is")
     print("  the real bot, not the per-signal backtest. Past results ≠ future results.")
 
+    return {"curve": curve, "start": start_equity, "final": final_eq,
+            "ret": ret, "max_dd": max_dd}
+
+
+def save_chart(result, out_path):
+    """Render the equity curve + underwater (drawdown) plot to a PNG. The series is
+    the SAME equity the simulation marks each bar, so the chart is the bot, not a
+    redraw. Requires matplotlib (asset-generation only, not a runtime dependency)."""
+    import datetime
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    curve = result["curve"]
+    xs = [datetime.datetime.utcfromtimestamp(t) for t, _ in curve]
+    eq = [e for _, e in curve]
+    peak, under = eq[0], []
+    for e in eq:
+        peak = max(peak, e)
+        under.append((e / peak - 1) * 100)   # drawdown %, <= 0
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), height_ratios=[3, 1],
+                                   sharex=True, gridspec_kw={"hspace": 0.08})
+    ax1.plot(xs, eq, color="#16a34a", lw=1.4)
+    ax1.axhline(result["start"], color="#9ca3af", ls="--", lw=0.8)
+    ax1.fill_between(xs, result["start"], eq, where=[e >= result["start"] for e in eq],
+                     color="#16a34a", alpha=0.08)
+    ax1.set_ylabel("Equity (USD)")
+    ax1.set_title(f"Fidukat — full-bot simulation: {result['ret']:+.1f}% over "
+                  f"~{(xs[-1]-xs[0]).days} days · max drawdown {result['max_dd']*100:.1f}% "
+                  f"(gate 30%)", fontsize=11, fontweight="bold")
+    ax1.grid(True, alpha=0.25)
+    ax2.fill_between(xs, under, 0, color="#dc2626", alpha=0.35)
+    ax2.plot(xs, under, color="#dc2626", lw=0.8)
+    ax2.axhline(-30, color="#dc2626", ls="--", lw=0.9)        # the DQ gate
+    ax2.text(xs[1], -30, " -30% disqualification gate", color="#dc2626",
+             fontsize=8, va="bottom")
+    ax2.set_ylabel("Drawdown %")
+    ax2.set_ylim(min(-32, min(under) - 3), 2)
+    ax2.grid(True, alpha=0.25)
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+    fig.savefig(out_path, dpi=130, bbox_inches="tight")
+    print(f"  chart saved -> {out_path}")
+
 
 if __name__ == "__main__":
-    eq = float(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].replace(".", "").isdigit() else 1000.0
-    run(eq)
+    argv = [a for a in sys.argv[1:]]
+    chart_path = None
+    if "--chart" in argv:
+        i = argv.index("--chart")
+        chart_path = argv[i + 1] if i + 1 < len(argv) else "assets/backtest-equity.png"
+        del argv[i:i + 2]
+    eq = float(argv[0]) if argv and argv[0].replace(".", "").isdigit() else 1000.0
+    result = run(eq)
+    if chart_path and result:
+        save_chart(result, chart_path)

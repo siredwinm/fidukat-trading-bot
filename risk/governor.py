@@ -42,6 +42,13 @@ DD_DERISK_START = 0.12   # start shrinking size
 DD_HALT = 0.22           # STOP opening new positions — 8% buffer below the 30% gate
 DD_RESUME = 0.15         # reopen only after recovering below this (hysteresis)
 
+# ── gas reserve ──
+# Native BNB counts toward portfolio equity (the competition marks total portfolio
+# value, BNB included), but it is the gas asset: buys always draw from USDT, never
+# from BNB. Keep at least this much BNB so the agent can always sign — BSC gas is
+# cheap, so 0.003 BNB clears many swaps. Below it we warn (top up from USDT manually).
+GAS_FLOOR_BNB = 0.003
+
 # ── daily trade guarantor ──
 FORCE_TRADE_AFTER_UTC_HOUR = 0   # on-demand: force the daily trade any time of day
 KEEPALIVE_FRAC = 0.015           # tiny size for the daily-rule keepalive trade

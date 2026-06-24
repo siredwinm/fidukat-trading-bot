@@ -115,11 +115,33 @@ class Agent:
                 return p
         return closed[-1][4]
 
-    # ── equity (paper: cash + mark-to-market of LONG positions) ──
+    # ── native BNB value (gas asset, but still real portfolio equity) ──
+    def _bnb_usd(self):
+        """On-chain BNB value in USD. BNB is the gas asset, but it is real portfolio
+        value — the competition marks total portfolio worth, BNB included — so it
+        counts toward equity (and thus drawdown). Buys never spend it (sizing draws
+        from USDT cash); we only warn when it drops below the gas floor. Cached per
+        cycle; paper mode and read failures contribute 0 (and log)."""
+        if self.paper:
+            return 0.0
+        try:
+            bal = self.twak.balance()
+            bnb_amt = float(bal.get("total", 0) or 0)
+            usd = float(bal.get("totalUsd", 0) or 0)
+            if bnb_amt < gov.GAS_FLOOR_BNB:
+                print(f"  ! BNB gas low: {bnb_amt:.5f} < floor {gov.GAS_FLOOR_BNB} "
+                      f"— top up from USDT soon or swaps will fail")
+            return usd
+        except Exception as e:
+            print(f"  ! BNB balance read failed ({e}); equity excludes BNB this cycle")
+            return 0.0
+
+    # ── equity (cash + mark-to-market of LONG positions + native BNB) ──
     def mark_to_market(self, prices):
         eq = self.cash
         for sym, p in self.positions.items():
             eq += p["qty"] * prices.get(sym, p["entry"])
+        eq += self._bnb_usd()   # native BNB is real portfolio value (gas-reserved, not spent on buys)
         return eq
 
     # ── LLM veto (optional; passes by default). The LLM may ONLY VETO. ──

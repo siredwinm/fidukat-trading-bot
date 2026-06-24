@@ -9,6 +9,7 @@ python-dotenv>=1.0
 
 # Dev/test only:
 # pytest>=8        # run: python -m pytest -q  (tests/ — no network or keys needed)
+# matplotlib>=3.8  # only for `simulate.py --chart` (regenerate assets/backtest-equity.png)
 
 # Note: CoinMarketCap and Trust Wallet Agent Kit need no Python deps here —
 # CMC is called over HTTPS via the stdlib, and TWAK is the `twak` CLI (installed

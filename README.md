@@ -11,6 +11,25 @@ BNB Chain) — **Track 1, Autonomous Trading Agents**.
 
 ---
 
+## ⛓️ On-chain proof (BSC mainnet — live, self-custody)
+
+Fidukat trades **live on BNB Smart Chain** from its own self-custody wallet. Every
+position is opened and closed by **local Trust Wallet signing — keys never leave the
+machine.** Nothing here asks for trust; it is all verifiable on-chain.
+
+| What | On-chain reference |
+|---|---|
+| **Agent wallet** — self-custody, TWAK-signed | [`0xe656…57E3`](https://bscscan.com/address/0xe65627481199a57a53d06228B8b1c470C0Cc57E3) |
+| **Track 1 competition registry** — registered entry | [`0x212c…aed5`](https://bscscan.com/address/0x212c61b9b72c95d95bf29cf032f5e5635629aed5) |
+| **Bootstrap funding** — swapped BNB → 7.93 USDT to seed trading capital | [`0xa203…6274`](https://bscscan.com/tx/0xa203fc410d0cd2a5d5642f54a6bb3d897cc5df52822289b2965fd41cdf9f6274) |
+| **Live trade** — Supertrend long, 3.26 USDT → 9.76 TRX (24 Jun) | [`0xaa99…f7e1`](https://bscscan.com/tx/0xaa99aecf3caaebee6683adf8fec4c93035fddf521f601d146c6a3aaffe1cf7e1) |
+
+The agent wallet's **full trade history is public** — click through and audit every
+open and close. Capital is intentionally small (a real, self-funded test wallet); the
+point is a *genuinely* hands-off self-custody loop on mainnet, not a paper demo.
+
+---
+
 ## How it works (in plain words)
 
 Every 5 minutes Fidukat reads live prices from CoinMarketCap and builds its own hourly
@@ -33,6 +52,29 @@ whether it stays inside the 30% gate.
 
 ---
 
+## 🔬 Anatomy of one trade (real, on-chain)
+
+The live trade from **24 Jun 2026**, end to end:
+
+1. **Signal.** On the hourly close, Supertrend flips **up** on TRX (period 10, mult 3) —
+   a fresh uptrend. Every other coin in the basket is flat or down, so they are skipped.
+2. **Veto check.** The LLM is handed the signal plus CoinMarketCap context (Fear & Greed,
+   derivatives) and asked one question — *any clear reason to skip?* It does not object.
+3. **Sizing.** The governor sizes by volatility and caps the order at available USDT (it
+   never spends gas BNB): **3.26 USDT**. Stop loss −2% (`$0.3244`), take profit +6%
+   (`$0.3508`), max hold 48h — all fixed up front.
+4. **Self-custody execution.** Trust Wallet Agent Kit signs the swap **locally** and
+   broadcasts it: 3.26 USDT → **9.76 TRX**
+   ([`0xaa99…f7e1`](https://bscscan.com/tx/0xaa99aecf3caaebee6683adf8fec4c93035fddf521f601d146c6a3aaffe1cf7e1)).
+5. **Reconcile.** State is marked against the **on-chain balance** (verified via
+   `balanceOf`), not the optimistic quote — so the eventual close sells exactly what the
+   wallet holds, never reverting on a rounding gap.
+
+The LLM never chose TRX or the size — the rule did; the LLM could only have said *no*.
+That is the entire safety model, in one trade.
+
+---
+
 ## The thesis
 
 Track 1 is scored on **live PnL with a hard drawdown gate**: exceed ~30% max
@@ -51,6 +93,27 @@ gate, and get cut. **Fidukat is built for the gate, not against it:**
 - **A drawdown governor brakes hard at 22%** — an 8% buffer below the 30% gate.
 
 Fidukat wins by restraint, not aggression.
+
+## 📈 Backtested track record (the full bot, ~2 years)
+
+Replaying the **entire bot** — Supertrend entries, volatility-targeted sizing, the
+drawdown governor, diversification caps, the daily-trade rule, and simulated swap fees —
+over **~2 years of hourly data** on the 15-token basket (normalized to a $1,000 book):
+
+![Equity curve and drawdown vs the 30% disqualification gate](assets/backtest-equity.png)
+
+| Metric | Result |
+|---|---|
+| Return (~2 yr) | **+8.3%** |
+| **Max drawdown** | **12.9%** — never close to the 30% gate |
+| Days with ≥1 trade | **720 / 735** (meets the daily rule) |
+| Closed trades / win rate | 959 / 33% |
+| Exit mix | SL 571 · TP 140 · timeout 229 · flip 19 |
+
+Read the shape, not just the number: ~14 months grinding sideways-to-down (trough −12.9%)
+before the trend pays off. A **low win rate with positive expectancy** is the signature of
+trend-following — many small stops, fewer larger wins. **The headline is the drawdown, not
+the return.** Reproduce it: `.venv/bin/python simulate.py --chart assets/backtest-equity.png`.
 
 ## Validated strategy
 
@@ -75,6 +138,21 @@ Execution is **spot long-only** (Trust Wallet Agent Kit supports spot swaps, not
 perps): on a down-signal the agent goes flat (holds USDT).
 
 ## Architecture
+
+```mermaid
+flowchart LR
+    CMC["CoinMarketCap Agent Hub"] -->|batch quotes| CS["Candle Store (1H)"]
+    CMC -->|Fear&Greed, derivatives| V["LLM Veto (DeepSeek V4 via OpenCode)"]
+    CS --> SIG["Supertrend (closed bars)"]
+    SIG --> GOV["Risk Governor<br/>sizing · drawdown · allowlist"]
+    V -->|may skip| GOV
+    GOV -->|approved order| TWAK["Trust Wallet Agent Kit"]
+    TWAK -->|spot swap, local signing| BSC[("BNB Chain / PancakeSwap")]
+    SDK["BNB AI Agent SDK"] -->|ERC-8004 identity| BSC
+    GOV --> J["Journal + state<br/>(--report)"]
+```
+
+**File map:**
 
 ```
 data/cmc.py        CoinMarketCap client: Pro REST (batch quotes, Fear & Greed) +

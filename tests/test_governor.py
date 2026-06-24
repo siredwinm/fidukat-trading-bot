@@ -59,7 +59,11 @@ def test_from_dict_ignores_legacy_keys():
 def test_daily_trade_guarantor():
     g = gov.RiskGovernor(1000)
     g.roll_day("2026-06-22")
-    assert g.needs_forced_trade(21)         # past 20:00 UTC, no trade today
-    assert not g.needs_forced_trade(10)     # too early
+    # at/after the configured cutoff hour, with no trade yet today -> force one
+    assert g.needs_forced_trade(gov.FORCE_TRADE_AFTER_UTC_HOUR)
+    assert g.needs_forced_trade(23)                       # later in the day too
+    if gov.FORCE_TRADE_AFTER_UTC_HOUR > 0:                # boundary only meaningful if cutoff > 0
+        early = gov.RiskGovernor(1000); early.roll_day("2026-06-22")
+        assert not early.needs_forced_trade(gov.FORCE_TRADE_AFTER_UTC_HOUR - 1)
     g.record_trade()
-    assert not g.needs_forced_trade(21)     # already traded today
+    assert not g.needs_forced_trade(23)                  # already traded today
