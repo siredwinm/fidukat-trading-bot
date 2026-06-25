@@ -27,6 +27,25 @@ BNB Chain) — **Track 1, Autonomous Trading Agents**.
 
 ---
 
+## ⚡ The pitch
+
+**Every other agent is built to post a big number. Fidukat is built not to blow up — and
+in a contest where one bad drawdown disqualifies you, that's how you win.**
+
+It's an AI trading agent you could actually leave running on your own machine. It reads
+the market through **CoinMarketCap**, asks the **CMC Skill Hub** whether the regime even
+*supports* taking risk today, pays a cent over **x402** for a fresh quote at the exact
+moment it commits capital, and signs every swap **locally through Trust Wallet** — keys
+never leave the laptop. The rules decide direction; the AI can only *veto*; a drawdown
+governor brakes hard long before the line that cuts everyone else.
+
+No leverage, no hype, no custody handed to anyone. **Your keys, your rules, capital
+preserved first** — a fiduciary, not a gambler. All three sponsor layers (CMC data ·
+Trust Wallet execution · BNB Chain venue + on-chain registration) doing real work, live
+on mainnet.
+
+---
+
 ## TL;DR — the whole submission in ten seconds
 
 - **Live, self-custody BSC agent:** Fidukat has an on-chain wallet, competition
