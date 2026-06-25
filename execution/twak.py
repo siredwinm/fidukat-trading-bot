@@ -70,6 +70,17 @@ DRY_RUN = os.environ.get("TWAK_LIVE", "0") != "1"            # default: do not s
 CLI_BIN = os.environ.get("TWAK_CLI", "twak")                 # installer installs `twak`
 PASSWORD = os.environ.get("TWAK_PASSWORD", "")               # wallet password (signing)
 
+# ── x402 pay-per-call data settlement ──
+# CoinMarketCap exposes its data behind HTTP 402: the agent pays a small on-chain
+# stablecoin amount per request instead of holding a monthly API subscription or a
+# stored API key ("payment is authentication"). The published spec settles in USDC on
+# Base, but the live endpoint also advertises a BSC-USDT route, so the agent pays from
+# the same USDT it already trades with — no second chain or bridged balance to manage.
+# Gasless after a one-time Permit2 approval; ~$0.01 per request.
+X402_BASE = "https://pro-api.coinmarketcap.com"
+X402_USDT_BSC = "0x55d398326f99059fF775485246999027B3197955"
+X402_MAX_ATOMIC = "10000000000000000"   # 0.01 USDT (18dp) — per-request auto-approve cap
+
 
 class TWAKError(Exception):
     pass
@@ -175,8 +186,8 @@ class TWAK:
         """Close LONG: TOKEN -> USDT."""
         return self.swap(token_amount, token, USDT)
 
-    # ── native x402 (special prize point: pay per-call). Flags per `twak x402 info`:
-    #    --max-payment (atomic units), --method, --body, --prefer-network. No --json/--password. ──
+    # ── x402 pay-per-call data (HTTP 402 micropayment over the wallet) ──
+    # Low-level escape hatch: hit any x402-gated URL with explicit settlement terms.
     def x402_request(self, url, max_payment, prefer_network=None, method=None, body=None):
         parts = ["x402", "request", url, "--max-payment", str(max_payment)]
         if prefer_network:
@@ -186,6 +197,42 @@ class TWAK:
         if body:
             parts += ["--body", body]
         return self._run(parts, want_json=False, password=False)
+
+    def x402_get(self, path, params=None):
+        """Fetch a CoinMarketCap x402-gated endpoint, paying per request from on-chain
+        USDT (BSC). The agent reaches for this at the moment it commits capital — pulling
+        fresh, paid-for confirmation data exactly when a stale free quote would be most
+        costly. Pay-per-use fits a low-frequency unattended trader better than a monthly
+        subscription, and no API key is stored for this path. Returns parsed JSON;
+        dry-run returns a marker and pays nothing."""
+        from urllib.parse import urlencode
+        url = X402_BASE + path + (("?" + urlencode(params)) if params else "")
+        parts = ["x402", "request", url,
+                 "--max-payment", X402_MAX_ATOMIC,
+                 "--prefer-network", "bsc",
+                 "--prefer-asset", X402_USDT_BSC,
+                 "--prefer-method", "permit2-exact",
+                 "--yes", "--json"]
+        if self.dry_run:
+            print(f"[DRY] {CLI_BIN} {' '.join(parts)}")
+            return {"dry_run": True}
+        cmd = shlex.split(CLI_BIN) + parts
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            raise TWAKError("x402 request timed out")
+        if out.returncode != 0:
+            raise TWAKError(f"x402 failed ({out.returncode}): "
+                            f"{out.stderr.strip() or out.stdout.strip()}")
+        text = out.stdout.strip()
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # tolerate any log lines before the JSON body; the body may be {…} or […]
+            starts = [i for i in (text.find("{"), text.find("[")) if i >= 0]
+            if starts:
+                return json.loads(text[min(starts):])
+            raise TWAKError("x402: could not parse JSON response")
 
 
 if __name__ == "__main__":

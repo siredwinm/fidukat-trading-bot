@@ -59,6 +59,7 @@ machine.** Nothing here asks for trust; it is all verifiable on-chain.
 | **Track 1 competition registry** — registered entry | [`0x212c…aed5`](https://bscscan.com/address/0x212c61b9b72c95d95bf29cf032f5e5635629aed5) |
 | **Bootstrap funding** — swapped BNB → 7.93 USDT to seed trading capital | [`0xa203…6274`](https://bscscan.com/tx/0xa203fc410d0cd2a5d5642f54a6bb3d897cc5df52822289b2965fd41cdf9f6274) |
 | **Live trade** — Supertrend long, 3.26 USDT → 9.76 TRX (24 Jun) | [`0xaa99…f7e1`](https://bscscan.com/tx/0xaa99aecf3caaebee6683adf8fec4c93035fddf521f601d146c6a3aaffe1cf7e1) |
+| **x402 data payment** — Permit2 approval; agent pays per-call for confirmation data | [`0x25df…6af9`](https://bscscan.com/tx/0x25dfaa352e89c77cc2a685db09e1b566bea6ceb7f2852a538f92c54e66926af9) |
 
 The agent wallet's **full trade history is public** — click through and audit every
 open and close. Capital is intentionally small (a real, self-funded test wallet); the
@@ -195,8 +196,10 @@ flowchart LR
     CS --> SIG["Supertrend (closed bars)"]
     SIG --> GOV["Risk Governor<br/>sizing · drawdown · allowlist"]
     V -->|may skip| GOV
+    GOV -.->|x402 $0.01 paid confirm| CMC
     GOV -->|approved order| TWAK["Trust Wallet Agent Kit"]
     TWAK -->|spot swap, local signing| BSC[("BNB Chain / PancakeSwap")]
+    TWAK -.->|x402 settle USDT| BSC
     SDK["BNB AI Agent SDK"] -->|ERC-8004 identity| BSC
     GOV --> J["Journal + state<br/>(--report)"]
 ```
@@ -220,7 +223,8 @@ execution/twak.py  Trust Wallet Agent Kit = the sole execution layer. Self-custo
                    Spot swaps on BSC (USDT <-> token).
 integration/identity.py  ERC-8004 on-chain agent identity via the BNB AI Agent SDK.
 loop/agent.py      Loop: poll quotes (build candles) -> Supertrend -> LLM veto ->
-                   risk gate -> TWAK swap. All state persists across restarts.
+                   risk gate -> x402 paid confirmation quote -> TWAK swap. All state
+                   persists across restarts.
 backtest/          Validation harness (eligible.py, validate.py, fetch_data.py).
 ```
 
@@ -230,16 +234,21 @@ Deploy & operate (systemd/Docker, go-live, monitoring): see **[docs/RUNBOOK.md](
 Strategy methodology and results: see **[docs/STRATEGY.md](docs/STRATEGY.md)**.
 Track 2 (CMC Strategy Skill — backtestable spec): see **[track2/](track2/)**.
 
-## Sponsor stack (all three layers → three special prizes)
+## The agent stack
 
-- **CoinMarketCap Agent Hub** — signal data (quotes → in-agent 1H candles) plus
-  agent-native veto context (Fear & Greed, derivatives, technicals via MCP).
-- **Trust Wallet Agent Kit** — the sole execution layer: self-custody signing +
-  autonomous mode + native x402 + guardrails (drawdown cap, allowlist, per-trade and
-  daily limits, slippage).
-- **BNB AI Agent SDK** — ERC-8004 on-chain agent identity (gas-free on testnet).
-- **BNB Chain** — execution venue (PancakeSwap via TWAK) + on-chain competition
-  registration (`0x212c61b9b72c95d95bf29cf032f5e5635629aed5`).
+Each layer earns its place by doing real work in the loop, not by sitting on a checklist:
+
+- **CoinMarketCap Agent Hub** — the data layer: free-tier batch quotes (built into
+  in-agent 1H candles) and agent-native veto context (Fear & Greed, derivatives,
+  technicals via MCP), plus **paid x402 confirmation quotes at the moment of risk**.
+- **Trust Wallet Agent Kit** — the sole execution layer: self-custody local signing,
+  autonomous-mode swaps, **native x402 settlement** for pay-per-call data, and
+  deterministic guardrails (drawdown cap, allowlist, per-trade and daily limits,
+  slippage). Keys never leave the machine.
+- **BNB AI Agent SDK** — ERC-8004 agent-identity integration (`integration/identity.py`)
+  for a verifiable on-chain agent ID.
+- **BNB Chain** — execution venue (PancakeSwap via TWAK), x402 settlement rail, and the
+  on-chain participant registry (`0x212c61b9b72c95d95bf29cf032f5e5635629aed5`).
 
 ## Cost-efficient by design
 
@@ -258,6 +267,30 @@ week is cents. A **fallback chain** keeps it reliable: OpenCode → OpenRouter �
 DeepSeek-direct (each tier set by an env key, tried in order). And the veto **fails
 open** — if every provider is unreachable, no veto fires and the validated rule-based
 strategy simply proceeds. On-chain trading stays 100% self-custody via TWAK regardless.
+
+## 💳 Pay-per-call data — pay a cent to verify before risking a dollar
+
+Fidukat runs unattended on a user's own machine and trades only a handful of times a
+day. A monthly market-data subscription is the wrong shape for that workload: the agent
+sits idle most of the month, and a long-lived API key is one more secret to leak. So at
+the single moment that matters — the instant before it commits real capital — the agent
+pays **$0.01 over [x402](https://docs.cdp.coinbase.com/x402/welcome)** for an
+authoritative, independent CoinMarketCap quote and checks it against the price its own
+candle store derived. If the two disagree by more than 5%, the candle is stale or the
+feed is wrong, and the agent **refuses the trade** rather than act on bad data. If the
+paid call can't complete, trading proceeds anyway (fail-open) — the check is insurance,
+never a single point of failure.
+
+This is genuine pay-per-use, not a feature checkbox: no subscription, and **no API key
+stored for this path — the payment itself is the authentication.** It settles in the
+same USDT the agent already trades with on BSC (the live endpoint advertises a BSC route
+alongside the documented Base/USDC one), so there's no second chain or bridged balance
+to manage. Gasless after a one-time Permit2 approval; every paid call leaves a receipt
+on the trade.
+
+- One-time Permit2 approval (on-chain): [`0x25df…6af9`](https://bscscan.com/tx/0x25dfaa352e89c77cc2a685db09e1b566bea6ceb7f2852a538f92c54e66926af9)
+- Per-trade receipts: each `OPEN` in `state/journal.jsonl` carries its `x402` confirmation (price, divergence, amount paid)
+- Cost: ~$0.01 per entry — cents for a full week, billed only when the agent actually trades
 
 ## Quickstart
 

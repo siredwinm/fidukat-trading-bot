@@ -168,6 +168,55 @@ class Agent:
         with open(JOURNAL_FILE, "a") as f:
             f.write(json.dumps(rec) + "\n")
 
+    # ── paid confirmation data at the moment of risk (x402) ──
+    def _x402_confirm(self, sym, price):
+        """Right before committing capital, pay ~$0.01 via x402 for an independent CMC
+        quote and check it against the agent's candle-derived price. The candle store is
+        built from polled quotes and can lag a fast move; an authoritative, paid-for read
+        at the decision instant is the cheap insurance that matters when real money is
+        about to move. Pay-per-use (no monthly subscription, no stored API key for this
+        path). Fail-open: if the paid call cannot complete, the trade proceeds and the
+        receipt is simply absent. Returns a receipt dict (with divergence) or None."""
+        if self.paper:
+            return None
+        try:
+            resp = self.twak.x402_get("/x402/v3/cryptocurrency/quotes/latest",
+                                      {"symbol": sym.upper()})
+            data = resp.get("data")
+            ref = None
+            if isinstance(data, list):       # v3 returns an array of token objects
+                ref = next((d for d in data
+                            if str(d.get("symbol", "")).upper() == sym.upper()), None) \
+                      or (data[0] if data else None)
+            elif isinstance(data, dict):     # tolerate a symbol-keyed shape too
+                ref = data.get(sym.upper())
+                if isinstance(ref, list):
+                    ref = ref[0] if ref else None
+            ref_px = None
+            if ref:
+                q = ref.get("quote")
+                usd = None
+                if isinstance(q, list):      # v3: quote is an array of currency objects
+                    usd = next((c for c in q
+                                if str(c.get("symbol", "")).upper() == "USD"), None) \
+                          or (q[0] if q else None)
+                elif isinstance(q, dict):    # v2: {"USD": {"price": ...}}
+                    usd = q.get("USD")
+                if usd and usd.get("price") is not None:
+                    ref_px = float(usd["price"])
+            receipt = {"paid_usd": 0.01, "asset": "USDT-BSC",
+                       "endpoint": "cmc:quotes/latest", "ref_price": ref_px}
+            if ref_px:
+                div = abs(ref_px / price - 1) * 100 if price else 0.0
+                receipt["divergence_pct"] = round(div, 2)
+                tag = "WARN" if div > 2 else "ok"
+                print(f"  x402 confirm [{tag}]: {sym} paid $0.01 → ref ${ref_px:.6f} "
+                      f"vs ${price:.6f} ({div:.1f}% gap)")
+            return receipt
+        except Exception as e:
+            print(f"  ! x402 confirm skipped ({e}); proceeding without paid receipt")
+            return None
+
     def _close(self, sym, px, reason):
         p = self.positions.pop(sym)
         notional = p["qty"] * p["entry"]
@@ -191,6 +240,17 @@ class Agent:
             return False
         qty = notional / price
         sl, tp = gov.compute_levels(price, 1)
+        # Paid confirmation data at the instant of risk (x402). If an authoritative,
+        # paid-for quote disagrees materially with the agent's candle-derived price, the
+        # data is stale or wrong — refuse to risk capital on it (fail-open if x402 itself
+        # is unreachable, so an outage never blocks trading).
+        x402 = self._x402_confirm(sym, price)
+        if x402 and x402.get("divergence_pct", 0) > 5:
+            print(f"  SKIP {sym}: x402 confirmation diverges "
+                  f"{x402['divergence_pct']}% — refusing to trade on bad/stale data")
+            self._journal("SKIP", sym, price=price,
+                          reason="x402-divergence", x402=x402)
+            return False
         if not self.paper:
             self.twak.open_long(sym, notional)      # USDT -> TOKEN (real swap)
         self.cash -= notional                       # cash accounting in both modes
@@ -198,7 +258,8 @@ class Agent:
                                "sl": sl, "tp": tp, "t_open": now_utc().isoformat()}
         self.gov.record_trade()
         self._journal("OPEN", sym, price=price, qty=qty, notional=notional,
-                      reason="keepalive" if keepalive else "supertrend-long", atr_pct=atr_pct)
+                      reason="keepalive" if keepalive else "supertrend-long",
+                      atr_pct=atr_pct, x402=x402)
         print(f"  OPEN {'KEEPALIVE' if keepalive else 'LONG'} {sym} @ {price:.6f} "
               f"notional=${notional:.0f} sl={sl:.6f} tp={tp:.6f} atr%={atr_pct*100:.2f}")
         return True
