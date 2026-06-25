@@ -70,7 +70,7 @@ twak swap 10 USDT ETH --chain bsc --quote-only   # preview a swap, no signing
 In `.env`: keep `TWAK_LIVE=0` (dry-run) until you are ready. Set `TWAK_PASSWORD` if
 you are not using the OS keychain for signing.
 
-## 6. BNB AI Agent SDK — on-chain identity (optional, special prize)
+## 6. BNB AI Agent SDK — on-chain identity (optional, not on the live path)
 
 ```bash
 pip install bnbagent

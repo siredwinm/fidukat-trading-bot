@@ -2,9 +2,9 @@
 """
 Trust Wallet Agent Kit (TWAK) execution adapter — the sole execution layer.
 
-Requirement for the "Best Use of TWAK" special prize: TWAK is the heart of the trader
-(self-custody local signing + autonomous mode + native x402 + guardrails), not a single
-bolted-on swap call.
+TWAK is the heart of the trader: self-custody local signing, autonomous-mode swaps,
+native x402 settlement for pay-per-call data, and guardrails — not a single bolted-on
+swap call. Keys never leave the machine.
 
 TWAK surface (confirmed from the official CLI reference) = SPOT ONLY:
   twak swap <amount> <from> <to> --chain bsc --slippage <pct> [--quote-only] [--json]

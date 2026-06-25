@@ -108,20 +108,25 @@ The live trade from **24 Jun 2026**, end to end:
 
 1. **Signal.** On the hourly close, Supertrend flips **up** on TRX (period 10, mult 3) —
    a fresh uptrend. Every other coin in the basket is flat or down, so they are skipped.
-2. **Veto check.** The LLM is handed the signal plus CoinMarketCap context (Fear & Greed,
-   derivatives) and asked one question — *any clear reason to skip?* It does not object.
+2. **Veto check.** The deterministic entry is offered to the **optional** LLM veto with
+   CoinMarketCap context (Fear & Greed, derivatives) — *any clear reason to skip?* The
+   veto can only ever *reject*; with no provider key configured it safely no-ops and the
+   validated rule proceeds.
 3. **Sizing.** The governor sizes by volatility and caps the order at available USDT (it
-   never spends gas BNB): **3.26 USDT**. Stop loss −2% (`$0.3244`), take profit +6%
-   (`$0.3508`), max hold 48h — all fixed up front.
+   never spends gas BNB): **3.26 USDT** buys **9.85 TRX**. Stop loss −2% (`$0.3244`),
+   take profit +6% (`$0.3508`), max hold 48h — all fixed up front.
 4. **Self-custody execution.** Trust Wallet Agent Kit signs the swap **locally** and
-   broadcasts it: 3.26 USDT → **9.76 TRX**
+   broadcasts it
    ([`0xaa99…f7e1`](https://bscscan.com/tx/0xaa99aecf3caaebee6683adf8fec4c93035fddf521f601d146c6a3aaffe1cf7e1)).
 5. **Reconcile.** State is marked against the **on-chain balance** (verified via
-   `balanceOf`), not the optimistic quote — so the eventual close sells exactly what the
-   wallet holds, never reverting on a rounding gap.
+   `balanceOf` — **9.76 TRX** after slippage), not the optimistic quote, so the eventual
+   close sells exactly what the wallet holds, never reverting on a rounding gap.
+6. **Outcome.** TRX drifted down and the position **stopped out at −2% the next day** — a
+   small, pre-defined loss. That is the design working: every loss is capped tight so no
+   single trade can threaten the drawdown gate.
 
-The LLM never chose TRX or the size — the rule did; the LLM could only have said *no*.
-That is the entire safety model, in one trade.
+The LLM never chose TRX or the size — the rule did. Capped losses, not big calls, are the
+safety model.
 
 ---
 
@@ -138,8 +143,9 @@ gate, and get cut. **Fidukat is built for the gate, not against it:**
   backtest (highest expectancy *and* lowest drawdown of five candidates).
 - **The LLM may only VETO, never decide.** Research shows an LLM that "picks the
   direction" tends to lose and skews bullish. Here the LLM only answers *"is there a
-  clear reason to skip this rule-based entry?"* using CoinMarketCap context. It defaults
-  to **DeepSeek V4 Flash via OpenCode — ~90% cheaper than Anthropic** (provider-pluggable).
+  clear reason to skip this rule-based entry?"* using CoinMarketCap context. It is
+  **optional and provider-pluggable** (default: a low-cost DeepSeek model via OpenCode);
+  with no key configured it safely no-ops and the validated rule proceeds unchanged.
 - **A drawdown governor brakes hard at 22%** — an 8% buffer below the 30% gate.
 
 Fidukat wins by restraint, not aggression.
@@ -201,7 +207,7 @@ flowchart LR
     GOV -->|approved order| TWAK["Trust Wallet Agent Kit"]
     TWAK -->|spot swap, local signing| BSC[("BNB Chain / PancakeSwap")]
     TWAK -.->|x402 settle USDT| BSC
-    SDK["BNB AI Agent SDK"] -->|ERC-8004 identity| BSC
+    SDK["BNB AI Agent SDK"] -.->|ERC-8004 identity (optional)| BSC
     GOV --> J["Journal + state<br/>(--report)"]
 ```
 
@@ -216,9 +222,9 @@ data/skillhub.py   CMC Skill Hub client (MCP/Streamable HTTP). Runs daily_market
                    once per UTC day as a market-regime gate; cached, fail-open.
 signals/core.py    Deterministic Supertrend — identical to the backtest engine
                    (cross-checked on 29 tokens: 0 mismatch -> live == validated).
-signals/veto.py    LLM veto + CMC context. Default = DeepSeek V4 Flash via OpenCode
-                   (~90% cheaper than Anthropic); provider-pluggable. Vetoes only;
-                   safe no-op without a key. Anthropic optional backup.
+signals/veto.py    LLM veto + CMC context. Default = a low-cost DeepSeek model via
+                   OpenCode; provider-pluggable. Vetoes only; safe no-op without a
+                   key. Anthropic optional backup.
 risk/governor.py   Volatility-targeted sizing, drawdown governor (de-risk @12%,
                    HALT @22%, hysteresis), SL/TP/hold, >=1 trade/day, token allowlist.
 execution/twak.py  Trust Wallet Agent Kit = the sole execution layer. Self-custody
@@ -250,8 +256,8 @@ Each layer earns its place by doing real work in the loop, not by sitting on a c
   autonomous-mode swaps, **native x402 settlement** for pay-per-call data, and
   deterministic guardrails (drawdown cap, allowlist, per-trade and daily limits,
   slippage). Keys never leave the machine.
-- **BNB AI Agent SDK** — ERC-8004 agent-identity integration (`integration/identity.py`)
-  for a verifiable on-chain agent ID.
+- **BNB AI Agent SDK** — a verifiable **ERC-8004 on-chain identity** for the agent
+  (`integration/identity.py`), runnable and gas-free on BSC testnet.
 - **BNB Chain** — execution venue (PancakeSwap via TWAK), x402 settlement rail, and the
   on-chain participant registry (`0x212c61b9b72c95d95bf29cf032f5e5635629aed5`).
 
@@ -293,8 +299,8 @@ alongside the documented Base/USDC one), so there's no second chain or bridged b
 to manage. Gasless after a one-time Permit2 approval; every paid call leaves a receipt
 on the trade.
 
-- One-time Permit2 approval (on-chain): [`0x25df…6af9`](https://bscscan.com/tx/0x25dfaa352e89c77cc2a685db09e1b566bea6ceb7f2852a538f92c54e66926af9)
-- Per-trade receipts: each `OPEN` in `state/journal.jsonl` carries its `x402` confirmation (price, divergence, amount paid)
+- One-time Permit2 approval (on-chain, verifiable): [`0x25df…6af9`](https://bscscan.com/tx/0x25dfaa352e89c77cc2a685db09e1b566bea6ceb7f2852a538f92c54e66926af9) — the approval that makes every later paid call gasless
+- Every live entry logs its `x402` confirmation (price, divergence, amount paid) to `state/journal.jsonl`; the paid `$0.01` data calls are real and return live quotes (`credit_count: 1`)
 - Cost: ~$0.01 per entry — cents for a full week, billed only when the agent actually trades
 
 ## 🌦️ Regime-aware — it stands aside in a risk-off tape
@@ -307,11 +313,12 @@ keepalive still fires, so the bot never trades into a bad backdrop just to chase
 yet never falls out of eligibility either.
 
 This is the Skill Hub as a **decision driver**, not a data readout — the platform's
-regime judgment actually changes what the agent does. At the time of writing the read is
-`headwind_tightening / defensive_research_only` (Fear & Greed 15, negative ETF flow), so
-the gate is active and the agent is holding back. It's cached per day (one call runs
-~90s) and **fail-open**: if the Hub is unreachable or returns a blocked read, the regime
-is `unknown` and trading proceeds unchanged.
+regime judgment actually changes what the agent does. Right now it reads risk-off —
+`headwind_tightening / defensive_research_only`, **Fear & Greed 15 (Extreme Fear)**,
+negative ETF flow — exactly the tape where an undisciplined bot gets hurt, and exactly
+where Fidukat stands aside from new discretionary longs. Cached per day (one call ~90s)
+and **fail-open**: if the Hub is unreachable or returns a blocked read, the regime is
+`unknown` and trading proceeds unchanged.
 
 ## Quickstart
 

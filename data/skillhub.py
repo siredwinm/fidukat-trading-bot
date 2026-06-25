@@ -58,10 +58,12 @@ def _classify(data):
     regime = str(mr.get("regime", "") or "")
     risk_bias = str(mr.get("risk_bias", "") or "")
     bias = str(((data or {}).get("action_guidance", {}) or {}).get("bias", "") or "")
-    blob = " ".join((regime, risk_bias, bias)).lower()
+    # Rely on the skill's authoritative judgment fields (risk_bias / action bias),
+    # not on broad regime-name keywords, so the gate reflects the read rather than a
+    # net wide enough to always trip.
+    blob = " ".join((risk_bias, bias)).lower()
     defensive = any(k in blob for k in
-                    ("defensive", "no_trade", "risk_off", "headwind",
-                     "liquidation_stress", "tightening", "reduce"))
+                    ("defensive", "no_trade", "risk_off", "reduce_risk", "de_risk"))
     return regime, risk_bias, defensive
 
 

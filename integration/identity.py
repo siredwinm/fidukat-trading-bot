@@ -4,12 +4,14 @@ On-chain agent identity via the BNB AI Agent SDK (ERC-8004).
 
 We depend on the published `bnbagent` PyPI package (`pip install bnbagent`); the SDK
 is NOT vendored into this repository. Registering an ERC-8004 identity (gas-free on
-BSC testnet via the MegaFuel paymaster) gives the agent a discoverable on-chain
-`agentId` and targets the "Best Use of BNB AI Agent SDK" special prize.
+BSC testnet via the MegaFuel paymaster) gives the agent a discoverable, verifiable
+on-chain `agentId`.
 
-Scope: identity only. Trade execution stays on Trust Wallet Agent Kit (see
-execution/twak.py). This module is optional and imported lazily so the rest of the
-bot runs without `bnbagent` installed.
+Scope: identity only, and OPTIONAL — a personal self-custody trader has no counterparty
+that needs to discover or trust it, so this is not part of the live trading path. The
+integration is present and runnable; it is imported lazily so the rest of the bot runs
+without `bnbagent` installed. Trade execution stays on Trust Wallet Agent Kit (see
+execution/twak.py).
 
 Env:
   WALLET_PASSWORD   encrypts/decrypts the keystore (~/.bnbagent/wallets/)

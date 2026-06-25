@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Risk governor — THE WINNING MODULE for the competition.
+Risk governor — the discipline core: preserve capital before chasing profit.
 
-Track 1 scoring penalizes blow-ups: drawdown > ~30% = DISQUALIFICATION, no matter
-how good the profit is. Backtests prove that vol-targeting drives DD down to ~18%
-while remaining profitable. This module enforces that discipline strictly:
+An agent left running unattended must protect the principal first; a large drawdown is
+the failure mode that ends a strategy. Backtests show vol-targeting drives DD down to
+~18% while remaining profitable. This module enforces that discipline strictly:
 
 1. Vol-targeting position sizing  — volatile setups get a smaller size.
 2. Drawdown governor             — de-risk gradually, then HALT entirely well below the gate.

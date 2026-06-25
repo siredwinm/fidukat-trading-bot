@@ -1,7 +1,8 @@
-# Runbook — running Fidukat for the competition week
+# Runbook — running Fidukat live (unattended)
 
-Operational guide to take Fidukat from "configured" to "trading live for 7 days and
-surviving restarts." Read [docs/SETUP.md](SETUP.md) first for keys and installation.
+Operational guide to take Fidukat from "configured" to "trading live and surviving
+restarts" — for the competition week or any continuous run. Read
+[docs/SETUP.md](SETUP.md) first for keys and installation.
 
 ---
 

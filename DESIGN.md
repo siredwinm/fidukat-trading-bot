@@ -155,16 +155,19 @@ flowchart TD
 
 ---
 
-## 6. Sponsor stack mapping (three layers → three special prizes)
+## 6. Sponsor stack — three layers, each doing real work
 
-- **CoinMarketCap Agent Hub** — signal data (quotes → 1H candles) + veto context
-  (Fear & Greed, derivatives, technicals via MCP). → *Best Use of Agent Hub*.
-- **Trust Wallet Agent Kit** — the sole execution layer: self-custody local signing +
-  autonomous mode + native x402 + guardrails (drawdown cap, allowlist, per-trade and
-  daily limits, slippage). → *Best Use of TWAK*.
-- **BNB AI Agent SDK** — NOT a trading layer; used to register the agent's on-chain
-  identity (ERC-8004), gas-free on testnet. → *Best Use of BNB SDK*.
-- **BNB Chain** — execution venue (PancakeSwap via TWAK on BSC) + registration contract.
+- **CoinMarketCap Agent Hub** — the data layer: free-tier quotes (→ in-agent 1H candles),
+  veto context (Fear & Greed, derivatives, technicals via MCP), paid **x402** confirmation
+  quotes at the moment of risk, and a **Skill Hub regime gate** (`daily_market_overview`)
+  that stands the agent down in a risk-off tape.
+- **Trust Wallet Agent Kit** — the sole execution layer: self-custody local signing,
+  autonomous-mode swaps, native **x402** settlement, and guardrails (drawdown cap,
+  allowlist, per-trade and daily limits, slippage). Keys never leave the machine.
+- **BNB AI Agent SDK** — ERC-8004 agent-identity integration (`integration/identity.py`),
+  optional and not on the live trading path (see §9, Non-goals).
+- **BNB Chain** — execution venue (PancakeSwap via TWAK), x402 settlement rail, and the
+  on-chain participant registry.
 
 ---
 
@@ -177,8 +180,9 @@ flowchart TD
 - **Diversification**: per-position notional capped at 34% of equity, max 4 concurrent
   positions — a single-name gap cannot blow the gate.
 - **Allowlist**: only the 15 validated tokens.
-- **Daily-trade guarantee**: take the best LONG signal if no trade yet and past 20:00
-  UTC — still subject to the drawdown HALT (discipline beats quota).
+- **Daily-trade guarantee**: take the best LONG signal if no trade yet this UTC day
+  (cutoff configurable via `FORCE_TRADE_AFTER_UTC_HOUR`, currently `0` = any hour) —
+  still subject to the drawdown HALT (discipline beats quota).
 
 Signals are computed on **closed** 1H bars only (so live == backtest), while MTM, SL/TP
 checks, and entries use the **current** price from the latest quote. All HTTPS calls use
@@ -188,18 +192,57 @@ prints a human-readable summary (equity, drawdown, win rate, recent trades).
 
 ---
 
-## 8. Status & remaining work
+## 8. Status
 
-**Done & tested (paper):** backtest, all modules, candle store from real CMC quotes,
-veto (real CMC inputs verified; needs an OpenCode/DeepSeek key — `VETO_API_KEY` — for
-the LLM call), TWAK adapter with the real CLI syntax (dry-run), ERC-8004 identity wrapper,
-HTML dashboard.
+**Live on BSC mainnet:** self-custody wallet funded, agent registered on-chain
+(`twak compete register`), real TWAK-signed swaps executed. The **x402** pay-per-call
+confirmation and the **CMC Skill Hub regime gate** are both wired into the live loop.
+Backtest, all modules, candle store (from real CMC quotes), the LLM veto, and the HTML
+dashboard are in place; 21 unit tests pass with no network or keys.
 
-**Remaining:** (1) set up TWAK credentials + test one testnet swap; (2) register
-ERC-8004 identity (BNB SDK) for the special prize; (3) warm up live + register for the
-competition before 22 June; (4) demo (show the self-custody + autonomous-signing loop
-with a BSC tx hash).
+**Optional / not on the live path:** the ERC-8004 identity (`integration/identity.py`) is
+runnable but not activated — see §9. The LLM veto needs an OpenCode/DeepSeek key
+(`VETO_API_KEY`) or it safely no-ops.
 
 **Repo note:** the public repo is 100% CoinMarketCap (zero references to any other
 exchange). The backtest is private research; the third-party data fetcher lives in a
 gitignored file (`*_private.py`). The full edge research is not included.
+
+---
+
+## 9. Design decisions & non-goals
+
+Every choice below is deliberate. The bot is built to run unattended on a real user's
+machine and protect real capital; these are the trade-offs a careful developer makes, and
+the things we chose *not* to build because the use case doesn't need them.
+
+**Decisions:**
+
+- **Spot, long-only.** Trust Wallet Agent Kit signs spot swaps; there is no perps surface.
+  Rather than fake leverage, the agent goes flat (holds USDT) on a down-signal. Simple,
+  honest, and within the one execution layer we trust with the keys.
+- **The LLM may only veto, never decide.** Direction and sizing are 100% deterministic
+  (Supertrend + governor). An LLM that picks direction tends to lose and skews bullish;
+  confining it to a veto keeps the blast radius minimal and the strategy reproducible.
+- **x402 for confirmation data.** A low-frequency unattended agent shouldn't carry a
+  monthly data subscription or a long-lived API key. It pays ~$0.01 only at the instant it
+  risks capital, and refuses the trade if the paid quote disagrees with its own read.
+- **Regime gate via the CMC Skill Hub.** Once a day the agent asks for a market-regime
+  read and stands aside from new discretionary longs in a risk-off tape — "knows when not
+  to trade," wired in rather than slogan.
+
+**Non-goals (deliberately not built):**
+
+- **No shorting / perps.** A venue (TWAK) constraint, embraced rather than worked around.
+- **No TWAK token risk-score gate.** The 15-token universe is fixed and contract-verified
+  by hand; a per-trade risk score on DOGE/ETH/XRP would be redundant. It would matter only
+  for an agent trading arbitrary or freshly-deployed tokens — which this is not.
+- **ERC-8004 identity is integrated but not activated.** An on-chain agent identity exists
+  so other parties can discover and trust an agent. A personal self-custody trader has no
+  such counterparty, so activating it would be ceremony, not function. The code is present
+  and runnable for anyone who does need it.
+- **No cross-asset / equity-correlation skills.** Those CMC skills need equity data outside
+  our access tier and return a blocked read; we leave them out rather than show a dead path.
+- **No online-learning or strategy-zoo regime switching.** In a one-week gated contest,
+  an unvalidated adaptive layer is a way to break a validated edge. Discipline beats
+  cleverness here.
