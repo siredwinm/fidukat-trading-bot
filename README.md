@@ -193,6 +193,7 @@ perps): on a down-signal the agent goes flat (holds USDT).
 flowchart LR
     CMC["CoinMarketCap Agent Hub"] -->|batch quotes| CS["Candle Store (1H)"]
     CMC -->|Fear&Greed, derivatives| V["LLM Veto (DeepSeek V4 via OpenCode)"]
+    CMC -->|Skill Hub: daily regime gate| GOV
     CS --> SIG["Supertrend (closed bars)"]
     SIG --> GOV["Risk Governor<br/>sizing · drawdown · allowlist"]
     V -->|may skip| GOV
@@ -211,6 +212,8 @@ data/cmc.py        CoinMarketCap client: Pro REST (batch quotes, Fear & Greed) +
                    Agent Hub MCP (derivatives, technical analysis, narratives).
 data/candles.py    Candle store: builds its own 1H OHLC from CMC quote polling
                    (free-tier CMC has no historical OHLCV). Persists across restarts.
+data/skillhub.py   CMC Skill Hub client (MCP/Streamable HTTP). Runs daily_market_overview
+                   once per UTC day as a market-regime gate; cached, fail-open.
 signals/core.py    Deterministic Supertrend — identical to the backtest engine
                    (cross-checked on 29 tokens: 0 mismatch -> live == validated).
 signals/veto.py    LLM veto + CMC context. Default = DeepSeek V4 Flash via OpenCode
@@ -239,8 +242,10 @@ Track 2 (CMC Strategy Skill — backtestable spec): see **[track2/](track2/)**.
 Each layer earns its place by doing real work in the loop, not by sitting on a checklist:
 
 - **CoinMarketCap Agent Hub** — the data layer: free-tier batch quotes (built into
-  in-agent 1H candles) and agent-native veto context (Fear & Greed, derivatives,
-  technicals via MCP), plus **paid x402 confirmation quotes at the moment of risk**.
+  in-agent 1H candles), agent-native veto context (Fear & Greed, derivatives,
+  technicals via MCP), **paid x402 confirmation quotes at the moment of risk**, and a
+  **Skill Hub market-regime gate** (`daily_market_overview`) that stands the agent down
+  from new longs in a risk-off tape.
 - **Trust Wallet Agent Kit** — the sole execution layer: self-custody local signing,
   autonomous-mode swaps, **native x402 settlement** for pay-per-call data, and
   deterministic guardrails (drawdown cap, allowlist, per-trade and daily limits,
@@ -291,6 +296,22 @@ on the trade.
 - One-time Permit2 approval (on-chain): [`0x25df…6af9`](https://bscscan.com/tx/0x25dfaa352e89c77cc2a685db09e1b566bea6ceb7f2852a538f92c54e66926af9)
 - Per-trade receipts: each `OPEN` in `state/journal.jsonl` carries its `x402` confirmation (price, divergence, amount paid)
 - Cost: ~$0.01 per entry — cents for a full week, billed only when the agent actually trades
+
+## 🌦️ Regime-aware — it stands aside in a risk-off tape
+
+"Knows when not to trade" isn't just a slogan; it's wired in. Once per UTC day the agent
+asks the **CoinMarketCap Skill Hub** for a market-regime read (`daily_market_overview`)
+and uses it as a gate: in a **defensive / risk-off regime** it holds back *new
+discretionary* longs instead of buying into a tightening tape. The mandatory daily
+keepalive still fires, so the bot never trades into a bad backdrop just to chase signals,
+yet never falls out of eligibility either.
+
+This is the Skill Hub as a **decision driver**, not a data readout — the platform's
+regime judgment actually changes what the agent does. At the time of writing the read is
+`headwind_tightening / defensive_research_only` (Fear & Greed 15, negative ETF flow), so
+the gate is active and the agent is holding back. It's cached per day (one call runs
+~90s) and **fail-open**: if the Hub is unreachable or returns a blocked read, the regime
+is `unknown` and trading proceeds unchanged.
 
 ## Quickstart
 

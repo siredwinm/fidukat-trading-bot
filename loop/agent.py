@@ -38,6 +38,7 @@ from signals import veto
 from risk import governor as gov
 from data.cmc import CMCClient
 from data.candles import CandleStore
+from data import skillhub
 from execution.twak import TWAK
 
 STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "state")
@@ -160,6 +161,15 @@ class Agent:
         if v:
             print(f"  VETO {sym}: {reason}")
         return v
+
+    # ── CMC Skill Hub market-regime gate (daily, cached, fail-open) ──
+    def _regime(self):
+        """Once-daily market-regime read from the CMC Skill Hub `daily_market_overview`
+        skill. In a defensive / risk-off regime the agent stands aside from new
+        discretionary longs. Cached per UTC day; never blocks trading on failure."""
+        if self.paper:
+            return {"defensive": False, "source": "paper"}
+        return skillhub.daily_regime(self.cmc.api_key, STATE_DIR)
 
     def _journal(self, event, sym, **fields):
         """Append one human-readable trade event to state/journal.jsonl."""
@@ -318,10 +328,26 @@ class Agent:
                 candidates.append((sym, snap))
 
         if can_open:
-            for sym, snap in candidates:
-                if len(self.positions) >= gov.MAX_CONCURRENT or self.cash < 2:
-                    break
-                self._open_long(sym, prices[sym], snap.atr_pct, equity)
+            # Market-regime gate (CMC Skill Hub, once/day). In a defensive / risk-off
+            # regime, stand aside from NEW discretionary longs rather than buy into a
+            # tightening tape — the mandatory daily keepalive below still fires, so
+            # competition eligibility is never affected. Checked only when there is
+            # something to gate, and fail-open (unknown regime => trade as normal).
+            regime = self._regime() if candidates else {"defensive": False, "source": "no_candidates"}
+            if candidates and regime.get("defensive"):
+                print(f"  [regime gate] {regime.get('regime')} / {regime.get('risk_bias')} "
+                      f"— holding {len(candidates)} discretionary long(s); keepalive still allowed")
+                self._journal("REGIME_HOLD", "_market", regime=regime.get("regime"),
+                              risk_bias=regime.get("risk_bias"),
+                              held=[s for s, _ in candidates])
+            else:
+                if candidates and regime.get("source") not in ("paper", "no_candidates"):
+                    print(f"  regime ok ({regime.get('regime') or regime.get('source')}) "
+                          f"— discretionary longs enabled")
+                for sym, snap in candidates:
+                    if len(self.positions) >= gov.MAX_CONCURRENT or self.cash < 2:
+                        break
+                    self._open_long(sym, prices[sym], snap.atr_pct, equity)
 
             # 3) guarantee >=1 trade/day (competition rule). Supertrend flips are sparse,
             #    so if none fired today, enter the most stable token already in an
