@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
   <title id="title">Fidukat demo flow</title>
-  <desc id="desc">A visual storyboard showing how Fidukat turns market data into a self-custody BNB Chain trade.</desc>
+  <desc id="desc">An eight-stage storyboard: CMC quotes become candles, a Supertrend rule fires, a daily regime gate and an LLM veto can stand the agent down, the governor sizes the order, a paid x402 check verifies the price, TWAK signs locally, and the trade settles on BNB Chain.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0 0 10 5 0 10z" fill="#17324D"/>
@@ -10,73 +10,109 @@
     </filter>
   </defs>
 
-  <rect width="1200" height="760" fill="#F5F0E6"/>
-  <text x="72" y="82" fill="#17324D" font-family="Inter, Arial, sans-serif" font-size="46" font-weight="850">Demo flow: one autonomous trade</text>
-  <text x="72" y="122" fill="#52616F" font-family="Inter, Arial, sans-serif" font-size="21">A deterministic signal opens the door. AI may close it. The governor decides size. TWAK signs locally.</text>
+  <rect width="1200" height="800" fill="#F5F0E6"/>
+  <text x="72" y="82" fill="#17324D" font-family="Inter, Arial, sans-serif" font-size="44" font-weight="850">Demo flow: one autonomous trade</text>
+  <text x="72" y="120" fill="#52616F" font-family="Inter, Arial, sans-serif" font-size="20">A rule opens the door. Two gates can close it. The governor sizes. A paid check verifies. TWAK signs locally.</text>
 
   <g font-family="Inter, Arial, sans-serif">
-    <g transform="translate(72 178)" filter="url(#cardShadow)">
-      <rect width="300" height="160" rx="24" fill="#FFF9ED"/>
-      <rect x="0" y="0" width="300" height="12" rx="6" fill="#E6A817"/>
-      <text x="26" y="50" fill="#17324D" font-size="17" font-weight="800">1. CMC DATA</text>
-      <text x="26" y="86" fill="#17324D" font-size="25" font-weight="850">Quotes to candles</text>
-      <text x="26" y="120" fill="#52616F" font-size="17">15-token watchlist</text>
-      <text x="26" y="145" fill="#52616F" font-size="17">1H OHLC built in-agent</text>
+
+    <!-- Row 1 -->
+    <g transform="translate(72 170)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#FFF9ED"/>
+      <rect width="234" height="11" rx="5.5" fill="#E6A817"/>
+      <text x="24" y="52" fill="#17324D" font-size="15" font-weight="800">1. CMC DATA</text>
+      <text x="24" y="88" fill="#17324D" font-size="20" font-weight="850">Quotes &#8594; candles</text>
+      <text x="24" y="120" fill="#52616F" font-size="15">15-token watchlist</text>
+      <text x="24" y="144" fill="#52616F" font-size="15">1H OHLC built in-agent</text>
     </g>
 
-    <g transform="translate(450 178)" filter="url(#cardShadow)">
-      <rect width="300" height="160" rx="24" fill="#FFF9ED"/>
-      <rect x="0" y="0" width="300" height="12" rx="6" fill="#216B4E"/>
-      <text x="26" y="50" fill="#17324D" font-size="17" font-weight="800">2. RULE SIGNAL</text>
-      <text x="26" y="86" fill="#17324D" font-size="25" font-weight="850">Supertrend flips up</text>
-      <text x="26" y="120" fill="#52616F" font-size="17">TRX long candidate</text>
-      <text x="26" y="145" fill="#52616F" font-size="17">LLM did not pick it</text>
+    <g transform="translate(346 170)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#FFF9ED"/>
+      <rect width="234" height="11" rx="5.5" fill="#216B4E"/>
+      <text x="24" y="52" fill="#17324D" font-size="15" font-weight="800">2. RULE SIGNAL</text>
+      <text x="24" y="88" fill="#17324D" font-size="20" font-weight="850">Supertrend up</text>
+      <text x="24" y="120" fill="#52616F" font-size="15">TRX long candidate</text>
+      <text x="24" y="144" fill="#52616F" font-size="15">LLM did not pick it</text>
     </g>
 
-    <g transform="translate(828 178)" filter="url(#cardShadow)">
-      <rect width="300" height="160" rx="24" fill="#FFF9ED"/>
-      <rect x="0" y="0" width="300" height="12" rx="6" fill="#C9432F"/>
-      <text x="26" y="50" fill="#17324D" font-size="17" font-weight="800">3. AI VETO</text>
-      <text x="26" y="86" fill="#17324D" font-size="25" font-weight="850">Only allowed to say no</text>
-      <text x="26" y="120" fill="#52616F" font-size="17">CMC context checked</text>
-      <text x="26" y="145" fill="#52616F" font-size="17">Default action: allow</text>
+    <g transform="translate(620 170)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#FFF9ED"/>
+      <rect width="234" height="11" rx="5.5" fill="#6B4FA1"/>
+      <rect x="2" y="2" width="230" height="164" rx="20" fill="none" stroke="#6B4FA1" stroke-width="2.5" stroke-dasharray="7 6"/>
+      <rect x="168" y="24" width="46" height="22" rx="11" fill="#6B4FA1" opacity="0.15"/>
+      <text x="191" y="40" fill="#6B4FA1" font-size="12" font-weight="800" text-anchor="middle">GATE</text>
+      <text x="24" y="52" fill="#17324D" font-size="15" font-weight="800">3. REGIME GATE</text>
+      <text x="24" y="88" fill="#17324D" font-size="20" font-weight="850">Stand aside?</text>
+      <text x="24" y="120" fill="#52616F" font-size="15">Skill Hub daily read</text>
+      <text x="24" y="144" fill="#52616F" font-size="15">Risk-off &#8594; hold longs</text>
     </g>
 
-    <path d="M382 258h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
-    <path d="M760 258h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
-
-    <g transform="translate(72 422)" filter="url(#cardShadow)">
-      <rect width="300" height="174" rx="24" fill="#17324D"/>
-      <text x="26" y="52" fill="#F5F0E6" font-size="17" font-weight="800">4. GOVERNOR</text>
-      <text x="26" y="90" fill="#F5F0E6" font-size="25" font-weight="850">Size and guard</text>
-      <text x="26" y="126" fill="#C7D2DD" font-size="17">3.26 USDT order</text>
-      <text x="26" y="151" fill="#C7D2DD" font-size="17">SL -2%, TP +6%, 48h hold</text>
+    <g transform="translate(894 170)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#FFF9ED"/>
+      <rect width="234" height="11" rx="5.5" fill="#C9432F"/>
+      <text x="24" y="52" fill="#17324D" font-size="15" font-weight="800">4. AI VETO</text>
+      <text x="24" y="88" fill="#17324D" font-size="20" font-weight="850">Only says no</text>
+      <text x="24" y="120" fill="#52616F" font-size="15">CMC context checked</text>
+      <text x="24" y="144" fill="#52616F" font-size="15">Default action: allow</text>
     </g>
 
-    <g transform="translate(450 422)" filter="url(#cardShadow)">
-      <rect width="300" height="174" rx="24" fill="#FFF9ED"/>
-      <text x="26" y="52" fill="#17324D" font-size="17" font-weight="800">5. TWAK EXECUTION</text>
-      <text x="26" y="90" fill="#17324D" font-size="25" font-weight="850">Local signing</text>
-      <text x="26" y="126" fill="#52616F" font-size="17">Keys stay on machine</text>
-      <text x="26" y="151" fill="#52616F" font-size="17">Swap: USDT to TRX</text>
+    <!-- Row 1 connectors -->
+    <path d="M308 254h36" fill="none" stroke="#17324D" stroke-width="3.5" marker-end="url(#arrow)"/>
+    <path d="M582 254h36" fill="none" stroke="#17324D" stroke-width="3.5" marker-end="url(#arrow)"/>
+    <path d="M856 254h36" fill="none" stroke="#17324D" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+    <!-- Wrap connector: card 4 down to card 5 -->
+    <path d="M1011 338 V393 H189 V450" fill="none" stroke="#17324D" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+    <!-- Row 2 -->
+    <g transform="translate(72 452)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#17324D"/>
+      <text x="24" y="52" fill="#F5F0E6" font-size="15" font-weight="800">5. GOVERNOR</text>
+      <text x="24" y="88" fill="#F5F0E6" font-size="20" font-weight="850">Size &amp; guard</text>
+      <text x="24" y="120" fill="#C7D2DD" font-size="15">3.26 USDT order</text>
+      <text x="24" y="144" fill="#C7D2DD" font-size="15">SL &#8722;2% &#183; TP +6% &#183; 48h</text>
     </g>
 
-    <g transform="translate(828 422)" filter="url(#cardShadow)">
-      <rect width="300" height="174" rx="24" fill="#FFF9ED"/>
-      <text x="26" y="52" fill="#17324D" font-size="17" font-weight="800">6. BNB CHAIN PROOF</text>
-      <text x="26" y="90" fill="#17324D" font-size="25" font-weight="850">9.76 TRX received</text>
-      <text x="26" y="126" fill="#52616F" font-size="17">Tx: 0xaa99...f7e1</text>
-      <text x="26" y="151" fill="#52616F" font-size="17">Balance reconciled on-chain</text>
+    <g transform="translate(346 452)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#FFF9ED"/>
+      <rect width="234" height="11" rx="5.5" fill="#0E7C86"/>
+      <rect x="2" y="2" width="230" height="164" rx="20" fill="none" stroke="#0E7C86" stroke-width="2.5" stroke-dasharray="7 6"/>
+      <rect x="168" y="24" width="46" height="22" rx="11" fill="#0E7C86" opacity="0.15"/>
+      <text x="191" y="40" fill="#0E7C86" font-size="12" font-weight="800" text-anchor="middle">GATE</text>
+      <text x="24" y="52" fill="#17324D" font-size="15" font-weight="800">6. x402 CONFIRM</text>
+      <text x="24" y="88" fill="#17324D" font-size="20" font-weight="850">Pay to verify</text>
+      <text x="24" y="120" fill="#52616F" font-size="15">$0.01 fresh CMC quote</text>
+      <text x="24" y="144" fill="#52616F" font-size="15">&#62;5% off &#8594; skip trade</text>
     </g>
 
-    <path d="M222 350v50" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
-    <path d="M382 510h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
-    <path d="M760 510h54" fill="none" stroke="#17324D" stroke-width="4" marker-end="url(#arrow)"/>
+    <g transform="translate(620 452)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#FFF9ED"/>
+      <rect width="234" height="11" rx="5.5" fill="#E6A817"/>
+      <text x="24" y="52" fill="#17324D" font-size="15" font-weight="800">7. TWAK EXECUTION</text>
+      <text x="24" y="88" fill="#17324D" font-size="20" font-weight="850">Local signing</text>
+      <text x="24" y="120" fill="#52616F" font-size="15">Keys never leave</text>
+      <text x="24" y="144" fill="#52616F" font-size="15">Swap USDT &#8594; TRX</text>
+    </g>
 
-    <g transform="translate(72 660)">
-      <rect width="1056" height="48" rx="24" fill="#E6A817"/>
-      <text x="32" y="31" fill="#17324D" font-size="19" font-weight="850">Core promise:</text>
-      <text x="174" y="31" fill="#17324D" font-size="19">the LLM never creates a trade, never sizes it, and never signs it.</text>
+    <g transform="translate(894 452)" filter="url(#cardShadow)">
+      <rect width="234" height="168" rx="22" fill="#FFF9ED"/>
+      <rect width="234" height="11" rx="5.5" fill="#216B4E"/>
+      <text x="24" y="52" fill="#17324D" font-size="15" font-weight="800">8. BNB CHAIN PROOF</text>
+      <text x="24" y="88" fill="#17324D" font-size="20" font-weight="850">On-chain proof</text>
+      <text x="24" y="120" fill="#52616F" font-size="15">9.76 TRX received</text>
+      <text x="24" y="144" fill="#52616F" font-size="15">Tx 0xaa99&#8230;f7e1</text>
+    </g>
+
+    <!-- Row 2 connectors -->
+    <path d="M308 536h36" fill="none" stroke="#17324D" stroke-width="3.5" marker-end="url(#arrow)"/>
+    <path d="M582 536h36" fill="none" stroke="#17324D" stroke-width="3.5" marker-end="url(#arrow)"/>
+    <path d="M856 536h36" fill="none" stroke="#17324D" stroke-width="3.5" marker-end="url(#arrow)"/>
+
+    <!-- Footer -->
+    <g transform="translate(72 700)">
+      <rect width="1056" height="50" rx="25" fill="#E6A817"/>
+      <text x="32" y="32" fill="#17324D" font-size="18" font-weight="850">Core promise:</text>
+      <text x="178" y="32" fill="#17324D" font-size="18">rules decide, AI only vetoes, governor sizes, TWAK signs &#8212; and two gates can stand it down before a cent moves.</text>
     </g>
   </g>
 </svg>
