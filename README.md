@@ -57,7 +57,8 @@ on mainnet.
 - **Backtested as the full bot:** ~2 years, 15-token basket, +8.3% return,
   12.9% max drawdown, 959 closed trades, 720/735 days with at least one trade.
 - **Sponsor stack is load-bearing:** CoinMarketCap data, Trust Wallet Agent Kit
-  execution, BNB AI Agent SDK identity, and BNB Chain proof.
+  execution, and BNB Chain proof — all doing real work live on mainnet. (An optional
+  BNB AI Agent SDK / ERC-8004 identity runs on testnet; it is not on the live path.)
 
 > **Fidukat** = *fidusia* (fiduciary) + *berkat* (grace). A fiduciary acts in the
 > principal's best interest and holds assets in trust — never gambling with what
@@ -226,7 +227,7 @@ flowchart LR
     GOV -->|approved order| TWAK["Trust Wallet Agent Kit"]
     TWAK -->|spot swap, local signing| BSC[("BNB Chain / PancakeSwap")]
     TWAK -.->|x402 settle USDT| BSC
-    SDK["BNB AI Agent SDK"] -.->|ERC-8004 identity (optional)| BSC
+    SDK["BNB AI Agent SDK"] -.->|"ERC-8004 identity (optional)"| BSC
     GOV --> J["Journal + state<br/>(--report)"]
 ```
 
@@ -319,7 +320,7 @@ to manage. Gasless after a one-time Permit2 approval; every paid call leaves a r
 on the trade.
 
 - One-time Permit2 approval (on-chain, verifiable): [`0x25df…6af9`](https://bscscan.com/tx/0x25dfaa352e89c77cc2a685db09e1b566bea6ceb7f2852a538f92c54e66926af9) — the approval that makes every later paid call gasless
-- Every live entry logs its `x402` confirmation (price, divergence, amount paid) to `state/journal.jsonl`; the paid `$0.01` data calls are real and return live quotes (`credit_count: 1`)
+- The x402 confirmation is wired into every live entry — `_open_long` logs price, divergence, and amount paid to `state/journal.jsonl` on each new position; the paid `$0.01` calls are real and return live quotes (`credit_count: 1`), settled on-chain by the Permit2 approval above
 - Cost: ~$0.01 per entry — cents for a full week, billed only when the agent actually trades
 
 ## 🌦️ Regime-aware — it stands aside in a risk-off tape
