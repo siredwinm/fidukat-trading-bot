@@ -8,6 +8,7 @@
 
 Rules decide. AI vetoes. Risk stays governed.
 
+[▶ Demo video](https://www.youtube.com/watch?v=1whkKT2-6BU) ·
 [On-chain proof](#on-chain-proof-bsc-mainnet--live-self-custody) ·
 [Backtest](#backtested-track-record-the-full-bot-2-years) ·
 [Architecture](#architecture) ·
@@ -109,9 +110,11 @@ whether it stays inside the 30% gate.
 
 ## Demo flow
 
+**▶ Watch the walkthrough: https://www.youtube.com/watch?v=1whkKT2-6BU**
+
 ![Fidukat demo flow](assets/demo-flow.svg)
 
-For the demo video, show this exact sequence:
+The video walks the same sequence end to end:
 
 1. `--report` dashboard/status: current equity, drawdown, positions, recent trades.
 2. Signal trace: CMC quote update → closed 1H candle → Supertrend LONG candidate.
