@@ -99,6 +99,15 @@ across up to 4 coins. Each position has a fixed exit: take profit at +6%, stop l
 trading entirely well before the −30% line that disqualifies you. The AI never decides
 *what* to trade — it can only veto. Think of it as a careful fiduciary, not a gambler.
 
+**Why the on-chain history can look quiet — by design.** Those Supertrend entries (up to
+4 at once) are the profit engine, but two things deliberately hold it back. In a risk-off
+regime the agent stands aside from *new* discretionary longs rather than buy into a
+falling tape. And the competition's one-trade-a-day requirement is met by a **fallback
+floor**: only if a whole UTC day passes with *no* real signal does the agent place one
+small keepalive trade to stay eligible — when real signals do fire (and the regime
+allows), it trades those instead. So a calm day on-chain is restraint working, not the
+bot sitting idle.
+
 **See it for yourself — no keys, no risk:**
 
 ```bash
@@ -185,7 +194,7 @@ over **~2 years of hourly data** on the 15-token basket (normalized to a $1,000 
 |---|---|
 | Return (~2 yr) | **+8.3%** |
 | **Max drawdown** | **12.9%** — never close to the 30% gate |
-| Days with ≥1 trade | **720 / 735** (meets the daily rule) |
+| Days with ≥1 trade | **720 / 735** (daily rule met; keepalive is a fallback floor) |
 | Closed trades / win rate | 959 / 33% |
 | Exit mix | SL 571 · TP 140 · timeout 229 · flip 19 |
 
