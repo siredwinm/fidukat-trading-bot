@@ -352,6 +352,33 @@ where Fidukat stands aside from new discretionary longs. Cached per day (one cal
 and **fail-open**: if the Hub is unreachable or returns a blocked read, the regime is
 `unknown` and trading proceeds unchanged.
 
+## 🧮 Slippage-aware — it sells what it *actually* holds, and keeps the receipts
+
+Every on-chain fill costs a little to fee + slippage, so after a buy the wallet holds
+**slightly fewer tokens than `notional ÷ price`** — often less than 1%. A human can't track
+that drift by hand across dozens of tiny swaps, and a naive bot that sells its *book* qty
+gets its close **reverted on-chain** for trying to spend tokens it doesn't have.
+
+Fidukat closes against **reality, not bookkeeping**: before every sell it reads the wallet's
+real BEP-20 balance straight from a BSC RPC and sells *that* (minus a 0.3% dust haircut), so
+a close never reverts. It then **records the realized slippage of each trade** (`slip_pct`)
+into the journal — the precise, per-fill cost number no manual trader keeps.
+
+## 📒 Self-auditing — a trading journal that adds itself up
+
+Every open, close, skip and regime-hold is appended to a structured journal
+(`state/journal.jsonl`) as it happens. One command rolls it into a plain-text scorecard —
+**weekly and monthly realized PnL, trade count, win rate, and average slippage** — so you
+(or a weekly cron) can see exactly how the agent is doing without reading a single log line:
+
+```bash
+.venv/bin/python reporting.py --summary      # weekly + monthly PnL, win rate, avg slippage
+.venv/bin/python loop/agent.py --report-html # same data as an HTML dashboard + PnL calendar
+```
+
+The bot doesn't just trade — it **grades its own homework**, in numbers a human couldn't
+tally by hand.
+
 ## Quickstart
 
 ```bash
@@ -364,6 +391,7 @@ cp .env.example .env            # add CMC_API_KEY (free tier is enough); keep TW
 .venv/bin/python loop/agent.py --loop     # poll every 5 min, evaluate hourly (paper if TWAK_LIVE=0)
 .venv/bin/python loop/agent.py --report      # text status (equity, drawdown, win rate, trades)
 .venv/bin/python loop/agent.py --report-html # HTML dashboard -> state/report.html (PnL calendar, equity curve)
+.venv/bin/python reporting.py --summary      # weekly + monthly PnL, win rate, avg slippage
 ```
 
 Going live: install TWAK (`curl -fsSL https://agent-kit.trustwallet.com/install.sh |
