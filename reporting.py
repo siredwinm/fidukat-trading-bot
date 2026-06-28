@@ -182,5 +182,55 @@ LLM veto-only. Past performance is not a guarantee of future results.</p>
 </div></body></html>"""
 
 
+def summary():
+    """Plain-text trading-journal summary: realized PnL, trade count, win rate and
+    average buy-side slippage, grouped by ISO week and by month. Reads the same
+    state/journal.jsonl the live agent appends to — run it any time (e.g. weekly cron)
+    to see how the bot is actually doing without opening the HTML report."""
+    from datetime import datetime
+    closes = [e for e in _events() if e.get("event") == "CLOSE"]
+    if not closes:
+        return "No closed trades in the journal yet."
+
+    def bucket(closes, keyfn):
+        rows = {}
+        for e in closes:
+            k = keyfn(e["ts"])
+            b = rows.setdefault(k, {"pnl": 0.0, "n": 0, "wins": 0, "slip": []})
+            b["pnl"] += e.get("pnl", 0) or 0
+            b["n"] += 1
+            b["wins"] += 1 if (e.get("pnl", 0) or 0) > 0 else 0
+            if e.get("slip_pct") is not None:
+                b["slip"].append(e["slip_pct"])
+        return rows
+
+    def fmt(title, rows):
+        out = [f"\n{title}", f"  {'period':<12} {'trades':>6} {'win%':>6} "
+               f"{'PnL($)':>9} {'avg slip%':>10}"]
+        for k in sorted(rows):
+            b = rows[k]
+            wr = b["wins"] / b["n"] * 100 if b["n"] else 0
+            avg_slip = sum(b["slip"]) / len(b["slip"]) if b["slip"] else 0
+            out.append(f"  {k:<12} {b['n']:>6} {wr:>5.0f}% {b['pnl']:>+9.2f} "
+                       f"{avg_slip:>+9.2f}%")
+        return "\n".join(out)
+
+    def iso_week(ts):
+        d = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        y, w, _ = d.isocalendar()
+        return f"{y}-W{w:02d}"
+
+    weekly = bucket(closes, iso_week)
+    monthly = bucket(closes, lambda ts: ts[:7])
+    total_pnl = sum(e.get("pnl", 0) or 0 for e in closes)
+    return (f"=== Fidukat trading journal — {len(closes)} closed trades, "
+            f"realized ${total_pnl:+.2f} ===" +
+            fmt("WEEKLY", weekly) + "\n" + fmt("MONTHLY", monthly))
+
+
 if __name__ == "__main__":
-    print("wrote", build())
+    import sys
+    if "--summary" in sys.argv:
+        print(summary())
+    else:
+        print("wrote", build())

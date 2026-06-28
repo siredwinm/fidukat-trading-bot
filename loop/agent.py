@@ -232,12 +232,20 @@ class Agent:
         notional = p["qty"] * p["entry"]
         pnl = p["qty"] * (px - p["entry"])          # LONG only
         pnl_pct = (px / p["entry"] - 1) * 100 if p["entry"] else 0.0
+        slip = None
         if not self.paper:
-            self.twak.close_long(sym, p["qty"])     # TOKEN -> USDT (real swap)
+            info = self.twak.close_long(sym, p["qty"])   # TOKEN -> USDT (real swap)
+            bal = (info or {}).get("onchain_balance")
+            if bal is not None and p["qty"]:             # buy-side fee+slippage drift (%)
+                slip = round((p["qty"] - bal) / p["qty"] * 100, 3)
         self.cash += notional + pnl                 # cash accounting in both modes
         self._journal("CLOSE", sym, price=px, qty=p["qty"], entry=p["entry"],
-                      pnl=round(pnl, 2), pnl_pct=round(pnl_pct, 2), reason=reason)
-        print(f"  CLOSE {sym} @ {px:.6f} ({reason}) pnl=${pnl:.2f} ({pnl_pct:+.1f}%)")
+                      pnl=round(pnl, 2), pnl_pct=round(pnl_pct, 2), reason=reason,
+                      slip_pct=slip)
+        msg = f"  CLOSE {sym} @ {px:.6f} ({reason}) pnl=${pnl:.2f} ({pnl_pct:+.1f}%)"
+        if slip is not None:
+            msg += f" slip={slip:+.2f}%"
+        print(msg)
 
     def _open_long(self, sym, price, atr_pct, equity, keepalive=False):
         """Spot LONG: USDT -> TOKEN (TWAK = spot only, no shorts). Entry at the

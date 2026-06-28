@@ -25,9 +25,22 @@ import os
 import json
 import shlex
 import subprocess
+import urllib.request
 
 COMP_CONTRACT = "0x212c61b9b72c95d95bf29cf032f5e5635629aed5"  # BSC competition contract
 USDT = "USDT"
+
+# Public BSC RPCs (read-only balance checks before a sell — no key needed). Tried in
+# order; the first that answers wins. Used only to reconcile the sell amount with the
+# real on-chain balance, so a buy's fee/slippage can never make a close try to sell
+# more tokens than the wallet actually holds (which the DEX rejects with a revert).
+BSC_RPCS = [
+    "https://bsc-dataseed.bnbchain.org",
+    "https://bsc-dataseed1.defibit.io",
+    "https://bsc.publicnode.com",
+]
+SELL_HAIRCUT = 0.003   # sell 99.7% of the real balance — absorbs rounding/dust at the
+                       # token-unit level so the swap never reverts on "amount > balance".
 
 # Verified BEP-20 contract addresses on BSC. CRITICAL: bare symbols are NOT safe on
 # TWAK's BSC token registry — most allowlist symbols return "Unknown token", and a few
@@ -94,15 +107,14 @@ class TWAK:
         self.dry_run = DRY_RUN if dry_run is None else dry_run
 
     # ── CLI runner ──
-    # Flags verified against `twak` v0.19.1: only append --json / --password to commands
-    # that accept them (swap/wallet/price/compete take --json; swap & compete register
-    # need --password; x402 takes neither). CLI_BIN may be multi-word ("npx @trustwallet/cli").
+    # TWAK_PASSWORD in .env must be quoted if it contains # (dotenv treats # as comment).
+    # `--password` flag is still valid (v0.19.1); TWAK_WALLET_PASSWORD env var also works.
     def _run(self, parts, want_json=True, password=False):
         cmd = shlex.split(CLI_BIN) + parts
         if want_json:
             cmd += ["--json"]
-        if password and PASSWORD:
-            cmd += ["--password", PASSWORD]
+        # --password flag rejected since v0.19.1; signing via TWAK_WALLET_PASSWORD env var
+        # (loaded from .env by agent.py via dotenv — subprocess inherits os.environ).
         printable = " ".join(shlex.quote(p) for p in cmd)
         if self.dry_run:
             print(f"[DRY] {printable}")
@@ -114,7 +126,7 @@ class TWAK:
         except subprocess.TimeoutExpired:
             raise TWAKError(f"timeout: {printable}")
         if out.returncode != 0:
-            raise TWAKError(f"CLI failed ({out.returncode}): {out.stderr.strip() or out.stdout.strip()}")
+            raise TWAKError(f"CLI failed ({out.returncode}) stdout={out.stdout.strip()!r} stderr={out.stderr.strip()!r}")
         try:
             return json.loads(out.stdout)
         except json.JSONDecodeError:
@@ -182,9 +194,47 @@ class TWAK:
         """LONG: USDT -> TOKEN."""
         return self.swap(round(usd_amount, 2), USDT, token)
 
+    # ── on-chain balance (read-only RPC; no signing) ──
+    def onchain_balance(self, token):
+        """Real ERC-20 balance of `token` in the wallet, as a float. Direct BSC RPC
+        balanceOf — independent of TWAK's portfolio API (which does not reliably index
+        Binance-Peg tokens). Returns None if every RPC fails (caller falls back)."""
+        if self.chain != "bsc":
+            return None
+        addr = self._resolve(token)
+        wallet = self.wallet_address().get("address")
+        if not wallet:
+            return None
+        dec = BSC_DECIMALS.get(str(token).upper(), 18)
+        data = "0x70a08231" + wallet[2:].rjust(64, "0")   # balanceOf(address)
+        payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "eth_call",
+                              "params": [{"to": addr, "data": data}, "latest"]}).encode()
+        for url in BSC_RPCS:
+            try:
+                req = urllib.request.Request(url, data=payload, headers={
+                    "Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
+                res = json.load(urllib.request.urlopen(req, timeout=20)).get("result")
+                if res:
+                    return int(res, 16) / (10 ** dec)
+            except Exception:
+                continue
+        return None
+
     def close_long(self, token, token_amount):
-        """Close LONG: TOKEN -> USDT."""
-        return self.swap(token_amount, token, USDT)
+        """Close LONG: TOKEN -> USDT. Sell the REAL on-chain balance (minus a small
+        haircut), not the bookkeeping qty — a buy's fee/slippage leaves slightly fewer
+        tokens than `notional/price`, and selling that recorded amount reverts on-chain.
+        Falls back to the recorded amount if the balance read is unavailable."""
+        bal = self.onchain_balance(token)
+        amount = token_amount
+        if bal is not None and bal > 0:
+            amount = min(token_amount, bal) * (1 - SELL_HAIRCUT)
+        result = self.swap(amount, token, USDT)
+        # Return reconciliation info so the caller can log realized slippage: how far the
+        # real on-chain balance drifted from the bookkeeping qty (= fee+slippage paid on
+        # the buy) — the number a human can't track by hand across many small swaps.
+        return {"swap": result, "requested": token_amount,
+                "onchain_balance": bal, "sold": amount}
 
     # ── x402 pay-per-call data (HTTP 402 micropayment over the wallet) ──
     # Low-level escape hatch: hit any x402-gated URL with explicit settlement terms.
